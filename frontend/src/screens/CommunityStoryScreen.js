@@ -18,10 +18,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const SEEN_STORIES_KEY = '@echolingua_seen_stories';
 
 export default function CommunityStoryScreen({ navigation }) {
+  const { theme } = useTheme();
   const [stories, setStories] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -417,7 +419,22 @@ export default function CommunityStoryScreen({ navigation }) {
     const isCollected = collectedStories[item.id];
     
     return (
-      <View style={styles.storyCard}>
+      <View 
+        style={[
+          styles.storyCard, 
+          { 
+            backgroundColor: theme.surface, 
+            borderColor: 'transparent',
+            borderWidth: 0,
+            shadowColor: theme.shadow,
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 3,
+            marginHorizontal: 4, // Add a bit of side margin for shadow
+            marginBottom: 16
+          }
+        ]}
+      >
         {/* Author Header */}
         <View style={styles.authorHeader}>
           <TouchableOpacity 
@@ -426,17 +443,25 @@ export default function CommunityStoryScreen({ navigation }) {
           >
             <Text style={styles.authorAvatar}>{item.authorAvatar}</Text>
             <View>
-              <Text style={styles.authorName}>{item.author}</Text>
-              <Text style={styles.storyMeta}>
+              <Text style={[styles.authorName, { color: theme.text }]}>{item.author}</Text>
+              <Text style={[styles.storyMeta, { color: theme.textSecondary }]}>
                 {item.language} • {item.category}
               </Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.followBtn, item.isFollowing && styles.followingBtn]}
+            style={[
+              styles.followBtn, 
+              item.isFollowing ? styles.followingBtn : { backgroundColor: theme.primary },
+              item.isFollowing && { backgroundColor: theme.surfaceVariant, borderColor: theme.border }
+            ]}
             onPress={() => handleFollowAuthor(item.id)}
           >
-            <Text style={[styles.followBtnText, item.isFollowing && styles.followingBtnText]}>
+            <Text style={[
+              styles.followBtnText, 
+              item.isFollowing ? styles.followingBtnText : { color: theme.onPrimary },
+              item.isFollowing && { color: theme.textSecondary }
+            ]}>
               {item.isFollowing ? 'Following' : 'Follow'}
             </Text>
           </TouchableOpacity>
@@ -444,8 +469,8 @@ export default function CommunityStoryScreen({ navigation }) {
 
         {/* Story Content */}
         <View style={styles.storyContent}>
-          <Text style={styles.storyTitle}>{item.title}</Text>
-          <Text style={styles.storyDescription}>{item.description}</Text>
+          <Text style={[styles.storyTitle, { color: theme.text }]}>{item.title}</Text>
+          <Text style={[styles.storyDescription, { color: theme.textSecondary }]}>{item.description}</Text>
           
           {/* Image */}
           {item.imageUri && (
@@ -455,60 +480,66 @@ export default function CommunityStoryScreen({ navigation }) {
           {/* Audio Player */}
           {item.audioUri && (
             <TouchableOpacity 
-              style={styles.audioPlayer}
+              style={[
+                styles.audioPlayer, 
+                { 
+                  backgroundColor: theme.surfaceVariant,
+                  borderColor: 'transparent' 
+                }
+              ]}
               onPress={() => playAudio(item.audioUri, item.id)}
             >
               <Ionicons 
                 name={playingAudioId === item.id ? "pause-circle" : "play-circle"} 
                 size={40} 
-                color={COLORS.primary} 
+                color={theme.primary} 
               />
               <View style={styles.audioPlayerInfo}>
-                <Text style={styles.audioPlayerLabel}>
+                <Text style={[styles.audioPlayerLabel, { color: theme.text }]}>
                   {playingAudioId === item.id ? 'Playing...' : 'Audio Recording'}
                 </Text>
-                <Text style={styles.audioPlayerSubtext}>Tap to {playingAudioId === item.id ? 'pause' : 'play'}</Text>
+                <Text style={[styles.audioPlayerSubtext, { color: theme.textSecondary }]}>Tap to {playingAudioId === item.id ? 'pause' : 'play'}</Text>
               </View>
-              <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
+              <Ionicons name="musical-notes" size={24} color={theme.primary} />
             </TouchableOpacity>
           )}
           
           {/* File Attachment */}
           {item.fileUri && item.fileName && (
-            <View style={styles.fileAttachment}>
-              <Ionicons name="document-attach" size={20} color={COLORS.secondary} />
-              <Text style={styles.fileAttachmentText}>{item.fileName}</Text>
+            <View style={[styles.fileAttachment, { backgroundColor: theme.surfaceVariant, borderColor: 'transparent' }]}>
+              <Ionicons name="document-attach" size={20} color={theme.secondary} />
+              <Text style={[styles.fileAttachmentText, { color: theme.textSecondary }]}>{item.fileName}</Text>
             </View>
           )}
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, { borderTopColor: theme.border }]}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => handleLikeStory(item.id)}>
             <Ionicons 
               name={isLiked ? "heart" : "heart-outline"} 
               size={22} 
-              color={isLiked ? "#FF4458" : COLORS.textSecondary} 
+              color={isLiked ? "#FF4458" : theme.textSecondary} 
             />
-            <Text style={[styles.actionText, isLiked && styles.actionTextActive]}>{item.likes}</Text>
+            <Text style={[styles.actionText, { color: isLiked ? "#FF4458" : theme.textSecondary }]}>{item.likes}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn} onPress={() => openComments(item)}>
-            <Ionicons name="chatbubble-outline" size={22} color={COLORS.textSecondary} />
-            <Text style={styles.actionText}>{item.comments}</Text>
+            <Ionicons name="chatbubble-outline" size={22} color={theme.textSecondary} />
+            <Text style={[styles.actionText, { color: theme.textSecondary }]}>{item.comments}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn} onPress={() => handleBookmarkStory(item.id)}>
             <Ionicons 
               name={isCollected ? "bookmark" : "bookmark-outline"} 
               size={22} 
-              color={isCollected ? COLORS.primary : COLORS.textSecondary} 
+              color={isCollected ? theme.primary : theme.textSecondary} 
             />
-            <Text style={[styles.actionText, isCollected && styles.actionTextActive]}>{item.bookmarks}</Text>
+            <Text style={[styles.actionText, { color: isCollected ? theme.primary : theme.textSecondary }]}>{item.bookmarks}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn}>
-            <Ionicons name="share-outline" size={22} color={COLORS.textSecondary} />
+            <Ionicons name="share-outline" size={22} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -516,9 +547,9 @@ export default function CommunityStoryScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => {
             if (navigation.canGoBack()) {
@@ -528,21 +559,21 @@ export default function CommunityStoryScreen({ navigation }) {
             }
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Community Stories</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Community Stories</Text>
         <TouchableOpacity onPress={() => setShowUploadModal(true)}>
-          <Ionicons name="add-circle" size={28} color={COLORS.primary} />
+          <Ionicons name="add-circle" size={28} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={COLORS.textSecondary} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.card }]}>
+        <Ionicons name="search" size={20} color={theme.textSecondary} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Search stories, authors..."
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={theme.textSecondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -553,10 +584,18 @@ export default function CommunityStoryScreen({ navigation }) {
         {['all', 'following', 'popular'].map((tab) => (
           <TouchableOpacity
             key={tab}
-            style={[styles.tab, filterTab === tab && styles.activeTab]}
+            style={[
+              styles.tab, 
+              { backgroundColor: theme.surface, borderColor: theme.border },
+              filterTab === tab && [styles.activeTab, { backgroundColor: theme.primary, borderColor: theme.primary }]
+            ]}
             onPress={() => setFilterTab(tab)}
           >
-            <Text style={[styles.tabText, filterTab === tab && styles.activeTabText]}>
+            <Text style={[
+              styles.tabText, 
+              { color: theme.textSecondary },
+              filterTab === tab && [styles.activeTabText, { color: theme.onPrimary || '#FFFFFF' }]
+            ]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
@@ -572,9 +611,9 @@ export default function CommunityStoryScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <FontAwesome5 name="book-open" size={48} color={COLORS.textSecondary} />
-            <Text style={styles.emptyText}>No stories found</Text>
-            <Text style={styles.emptySubtext}>Be the first to share a story!</Text>
+            <FontAwesome5 name="book-open" size={48} color={theme.textSecondary} />
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No stories found</Text>
+            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>Be the first to share a story!</Text>
           </View>
         }
       />
@@ -582,47 +621,52 @@ export default function CommunityStoryScreen({ navigation }) {
       {/* Upload Story Modal */}
       <Modal visible={showUploadModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Upload Story</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Upload Story</Text>
               <TouchableOpacity onPress={() => setShowUploadModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.text} />
+                <Ionicons name="close" size={28} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalScrollView}>
-              <Text style={styles.inputLabel}>Title *</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Title *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.input, color: theme.text, borderColor: theme.border }]}
                 placeholder="Enter story title"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 value={storyTitle}
                 onChangeText={setStoryTitle}
               />
 
-              <Text style={styles.inputLabel}>Description *</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description *</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { backgroundColor: theme.input, color: theme.text, borderColor: theme.border }]}
                 placeholder="Describe your story..."
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 value={storyDescription}
                 onChangeText={setStoryDescription}
                 multiline
                 numberOfLines={4}
               />
 
-              <Text style={styles.inputLabel}>Language</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Language</Text>
               <View style={styles.pickerContainer}>
                 {['Kadazandusun', 'Iban', 'Bajau', 'Murut'].map((lang) => (
                   <TouchableOpacity
                     key={lang}
-                    style={[styles.pickerOption, storyLanguage === lang && styles.pickerOptionActive]}
+                    style={[
+                      styles.pickerOption, 
+                      { backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                      storyLanguage === lang && [styles.pickerOptionActive, { backgroundColor: theme.primary, borderColor: theme.primary }]
+                    ]}
                     onPress={() => setStoryLanguage(lang)}
                   >
                     <Text
                       style={[
                         styles.pickerOptionText,
-                        storyLanguage === lang && styles.pickerOptionTextActive,
+                        { color: theme.text },
+                        storyLanguage === lang && [styles.pickerOptionTextActive, { color: theme.onPrimary }]
                       ]}
                     >
                       {lang}
@@ -631,18 +675,23 @@ export default function CommunityStoryScreen({ navigation }) {
                 ))}
               </View>
 
-              <Text style={styles.inputLabel}>Category</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category</Text>
               <View style={styles.pickerContainer}>
                 {['Folklore', 'Music & Songs', 'Cultural Heritage', 'Personal Story'].map((cat) => (
                   <TouchableOpacity
                     key={cat}
-                    style={[styles.pickerOption, storyCategory === cat && styles.pickerOptionActive]}
+                    style={[
+                      styles.pickerOption, 
+                      { backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                      storyCategory === cat && [styles.pickerOptionActive, { backgroundColor: theme.primary, borderColor: theme.primary }]
+                    ]}
                     onPress={() => setStoryCategory(cat)}
                   >
                     <Text
                       style={[
                         styles.pickerOptionText,
-                        storyCategory === cat && styles.pickerOptionTextActive,
+                        { color: theme.text },
+                        storyCategory === cat && [styles.pickerOptionTextActive, { color: theme.onPrimary }]
                       ]}
                     >
                       {cat}
@@ -651,34 +700,34 @@ export default function CommunityStoryScreen({ navigation }) {
                 ))}
               </View>
 
-              <Text style={styles.inputLabel}>Media Attachments (Optional)</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Media Attachments (Optional)</Text>
               
               {/* Audio Picker */}
-              <TouchableOpacity style={styles.audioPickerBtn} onPress={handlePickAudio}>
-                <Ionicons name="mic" size={24} color={COLORS.primary} />
-                <Text style={styles.audioPickerText}>
+              <TouchableOpacity style={[styles.audioPickerBtn, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={handlePickAudio}>
+                <Ionicons name="mic" size={24} color={theme.primary} />
+                <Text style={[styles.audioPickerText, { color: theme.text }]}>
                   {selectedAudio ? selectedAudio.name : 'Add Audio Recording'}
                 </Text>
               </TouchableOpacity>
               
               {/* Image Picker */}
-              <TouchableOpacity style={styles.audioPickerBtn} onPress={handlePickImage}>
-                <Ionicons name="image" size={24} color={COLORS.secondary} />
-                <Text style={styles.audioPickerText}>
+              <TouchableOpacity style={[styles.audioPickerBtn, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={handlePickImage}>
+                <Ionicons name="image" size={24} color={theme.secondary} />
+                <Text style={[styles.audioPickerText, { color: theme.text }]}>
                   {selectedImage ? 'Image Selected' : 'Add Image'}
                 </Text>
               </TouchableOpacity>
               
               {/* File Picker */}
-              <TouchableOpacity style={styles.audioPickerBtn} onPress={handlePickFile}>
-                <Ionicons name="document" size={24} color={COLORS.accent} />
-                <Text style={styles.audioPickerText}>
+              <TouchableOpacity style={[styles.audioPickerBtn, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={handlePickFile}>
+                <Ionicons name="document" size={24} color={theme.accent || COLORS.accent} />
+                <Text style={[styles.audioPickerText, { color: theme.text }]}>
                   {selectedFile ? selectedFile.name : 'Add File'}
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.uploadBtn} onPress={handleUploadStory}>
-                <Text style={styles.uploadBtnText}>Upload Story</Text>
+              <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: theme.primary }]} onPress={handleUploadStory}>
+                <Text style={[styles.uploadBtnText, { color: theme.onPrimary }]}>Upload Story</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -688,37 +737,37 @@ export default function CommunityStoryScreen({ navigation }) {
       {/* Comments Modal */}
       <Modal visible={showCommentModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Comments</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Comments</Text>
               <TouchableOpacity onPress={() => setShowCommentModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.text} />
+                <Ionicons name="close" size={28} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.commentsScrollView}>
               {selectedStory?.commentsList.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <Text style={styles.commentAuthor}>{comment.author}</Text>
-                  <Text style={styles.commentText}>{comment.text}</Text>
-                  <Text style={styles.commentTime}>{comment.time}</Text>
+                <View key={comment.id} style={[styles.commentItem, { borderBottomColor: theme.border }]}>
+                  <Text style={[styles.commentAuthor, { color: theme.text }]}>{comment.author}</Text>
+                  <Text style={[styles.commentText, { color: theme.textSecondary }]}>{comment.text}</Text>
+                  <Text style={[styles.commentTime, { color: theme.textSecondary }]}>{comment.time}</Text>
                 </View>
               ))}
               {selectedStory?.commentsList.length === 0 && (
-                <Text style={styles.noCommentsText}>No comments yet. Be the first!</Text>
+                <Text style={[styles.noCommentsText, { color: theme.textSecondary }]}>No comments yet. Be the first!</Text>
               )}
             </ScrollView>
 
-            <View style={styles.commentInputContainer}>
+            <View style={[styles.commentInputContainer, { borderTopColor: theme.border, backgroundColor: theme.surface }]}>
               <TextInput
-                style={styles.commentInput}
+                style={[styles.commentInput, { backgroundColor: theme.input, color: theme.text }]}
                 placeholder="Write a comment..."
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 value={newComment}
                 onChangeText={setNewComment}
               />
               <TouchableOpacity style={styles.commentSendBtn} onPress={handleAddComment}>
-                <Ionicons name="send" size={24} color={COLORS.primary} />
+                <Ionicons name="send" size={24} color={theme.primary} />
               </TouchableOpacity>
             </View>
           </View>

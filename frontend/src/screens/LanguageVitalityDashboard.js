@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 const STATS = [
-  { id: '1', title: 'Total Recordings', value: '1,247', icon: 'mic', color: COLORS.primary, change: '+15%' },
-  { id: '2', title: 'Active Learners', value: '3,842', icon: 'people', color: COLORS.success, change: '+8%' },
-  { id: '3', title: 'Stories Created', value: '156', icon: 'book', color: COLORS.secondary, change: '+23%' },
-  { id: '4', title: 'Words Documented', value: '4,521', icon: 'text', color: COLORS.accent, change: '+12%' },
+  { id: '1', title: 'Total Recordings', value: '1,247', icon: 'mic', colorKey: 'primary', change: '+15%' },
+  { id: '2', title: 'Active Learners', value: '3,842', icon: 'people', colorKey: 'success', change: '+8%' },
+  { id: '3', title: 'Stories Created', value: '156', icon: 'book', colorKey: 'secondary', change: '+23%' },
+  { id: '4', title: 'Words Documented', value: '4,521', icon: 'text', colorKey: 'accent', change: '+12%' },
 ];
 
 const CHART_DATA = [
@@ -40,93 +41,98 @@ const SIDEBAR_ITEMS = [
 ];
 
 export default function LanguageVitalityDashboard() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [selectedView, setSelectedView] = useState('overview');
 
   const maxValue = Math.max(...CHART_DATA.map(d => d.value));
 
-  const renderStatCard = ({ item }) => (
-    <View style={[styles.statCard, { borderLeftColor: item.color }]}>
-      <View style={styles.statHeader}>
-        <View style={[styles.statIconContainer, { backgroundColor: item.color + '20' }]}>
-          <Ionicons name={item.icon} size={24} color={item.color} />
+  const renderStatCard = ({ item }) => {
+    const itemColor = theme[item.colorKey] || theme.primary;
+    return (
+      <View style={[styles.statCard, { borderLeftColor: itemColor, backgroundColor: theme.surface }]}>
+        <View style={styles.statHeader}>
+          <View style={[styles.statIconContainer, { backgroundColor: itemColor + '20' }]}>
+            <Ionicons name={item.icon} size={24} color={itemColor} />
+          </View>
+          <View style={[styles.changeBadge, { backgroundColor: item.change.includes('+') ? (theme.success + '20') : (theme.error + '20') }]}>
+            <Ionicons
+              name={item.change.includes('+') ? 'trending-up' : 'trending-down'}
+              size={12}
+              color={item.change.includes('+') ? theme.success : theme.error}
+            />
+            <Text
+              style={[
+                styles.changeText,
+                { color: item.change.includes('+') ? theme.success : theme.error },
+              ]}
+            >
+              {item.change}
+            </Text>
+          </View>
         </View>
-        <View style={[styles.changeBadge, item.change.includes('+') && styles.changeBadgePositive]}>
-          <Ionicons
-            name={item.change.includes('+') ? 'trending-up' : 'trending-down'}
-            size={12}
-            color={item.change.includes('+') ? COLORS.success : COLORS.error}
-          />
-          <Text
-            style={[
-              styles.changeText,
-              item.change.includes('+') ? styles.changeTextPositive : styles.changeTextNegative,
-            ]}
-          >
-            {item.change}
-          </Text>
-        </View>
+        <Text style={[styles.statValue, { color: theme.text }]}>{item.value}</Text>
+        <Text style={[styles.statTitle, { color: theme.textSecondary }]}>{item.title}</Text>
       </View>
-      <Text style={styles.statValue}>{item.value}</Text>
-      <Text style={styles.statTitle}>{item.title}</Text>
-    </View>
-  );
+    );
+  };
 
   const renderLeaderboardItem = ({ item }) => {
     let rankStyle = {};
     if (item.rank === 1) rankStyle = styles.rankGold;
     else if (item.rank === 2) rankStyle = styles.rankSilver;
     else if (item.rank === 3) rankStyle = styles.rankBronze;
+    else rankStyle = { backgroundColor: theme.surfaceVariant, borderColor: theme.border };
 
     return (
-      <View style={styles.leaderboardItem}>
+      <View style={[styles.leaderboardItem, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.leaderboardLeft}>
           <View style={[styles.rankBadge, rankStyle]}>
-            <Text style={styles.rankText}>#{item.rank}</Text>
+            <Text style={[styles.rankText, { color: theme.text }]}>#{item.rank}</Text>
           </View>
-          <View style={styles.leaderboardAvatar}>
-            <Text style={styles.avatarText}>{item.avatar}</Text>
+          <View style={[styles.leaderboardAvatar, { backgroundColor: theme.primary }]}>
+            <Text style={[styles.avatarText, { color: theme.onPrimary || '#FFF' }]}>{item.avatar}</Text>
           </View>
           <View style={styles.leaderboardInfo}>
-            <Text style={styles.leaderboardName}>{item.name}</Text>
+            <Text style={[styles.leaderboardName, { color: theme.text }]}>{item.name}</Text>
             <View style={styles.leaderboardMeta}>
-              <View style={[styles.badgeTag, item.badge === 'Elder' && styles.badgeTagElder]}>
-                <Text style={styles.badgeTagText}>{item.badge}</Text>
+              <View style={[styles.badgeTag, item.badge === 'Elder' ? styles.badgeTagElder : { backgroundColor: theme.surfaceVariant }]}>
+                <Text style={[styles.badgeTagText, { color: item.badge === 'Elder' ? '#FFF' : theme.textSecondary }]}>{item.badge}</Text>
               </View>
-              <Text style={styles.contributionsText}>{item.contributions} contributions</Text>
+              <Text style={[styles.contributionsText, { color: theme.textSecondary }]}>{item.contributions} contributions</Text>
             </View>
           </View>
         </View>
         <View style={styles.leaderboardRight}>
-          <Text style={styles.pointsText}>{item.points}</Text>
-          <Text style={styles.pointsLabel}>pts</Text>
+          <Text style={[styles.pointsText, { color: theme.primary }]}>{item.points}</Text>
+          <Text style={[styles.pointsLabel, { color: theme.textSecondary }]}>pts</Text>
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Language Vitality</Text>
-        <Text style={styles.headerSubtitle}>Track community impact and growth</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Language Vitality</Text>
+        <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Track community impact and growth</Text>
       </View>
 
       <View style={styles.mainContent}>
         {/* Sidebar Navigation */}
-        <View style={styles.sidebar}>
+        <View style={[styles.sidebar, { backgroundColor: theme.surface, borderRightColor: theme.border }]}>
           {SIDEBAR_ITEMS.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={[
                 styles.sidebarItem,
-                selectedView === item.id && styles.sidebarItemActive,
+                selectedView === item.id && { backgroundColor: theme.primary + '20' },
               ]}
               onPress={() => {
                 console.log(`📊 View: ${item.label} - Sound: tap`);
@@ -136,12 +142,12 @@ export default function LanguageVitalityDashboard() {
               <Ionicons
                 name={item.icon}
                 size={20}
-                color={selectedView === item.id ? COLORS.primary : COLORS.textSecondary}
+                color={selectedView === item.id ? theme.primary : theme.textSecondary}
               />
               <Text
                 style={[
                   styles.sidebarLabel,
-                  selectedView === item.id && styles.sidebarLabelActive,
+                  { color: selectedView === item.id ? theme.primary : theme.textSecondary }
                 ]}
               >
                 {item.label}
@@ -165,32 +171,32 @@ export default function LanguageVitalityDashboard() {
           </View>
 
           {/* Chart Section */}
-          <View style={styles.chartCard}>
+          <View style={[styles.chartCard, { backgroundColor: theme.surface }]}>
             <View style={styles.chartHeader}>
               <View>
-                <Text style={styles.chartTitle}>Monthly Activity</Text>
-                <Text style={styles.chartSubtitle}>New contributions per month</Text>
+                <Text style={[styles.chartTitle, { color: theme.text }]}>Monthly Activity</Text>
+                <Text style={[styles.chartSubtitle, { color: theme.textSecondary }]}>New contributions per month</Text>
               </View>
               <TouchableOpacity style={styles.chartFilterButton}>
-                <Text style={styles.chartFilterText}>2026</Text>
-                <Ionicons name="chevron-down" size={16} color={COLORS.primary} />
+                <Text style={[styles.chartFilterText, { color: theme.textSecondary }]}>2026</Text>
+                <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.chart}>
               <View style={styles.chartYAxis}>
-                <Text style={styles.yAxisLabel}>100</Text>
-                <Text style={styles.yAxisLabel}>75</Text>
-                <Text style={styles.yAxisLabel}>50</Text>
-                <Text style={styles.yAxisLabel}>25</Text>
-                <Text style={styles.yAxisLabel}>0</Text>
+                <Text style={[styles.yAxisLabel, { color: theme.textSecondary }]}>100</Text>
+                <Text style={[styles.yAxisLabel, { color: theme.textSecondary }]}>75</Text>
+                <Text style={[styles.yAxisLabel, { color: theme.textSecondary }]}>50</Text>
+                <Text style={[styles.yAxisLabel, { color: theme.textSecondary }]}>25</Text>
+                <Text style={[styles.yAxisLabel, { color: theme.textSecondary }]}>0</Text>
               </View>
 
               <View style={styles.chartContent}>
                 {/* Grid Lines */}
                 <View style={styles.gridLines}>
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <View key={i} style={styles.gridLine} />
+                    <View key={i} style={[styles.gridLine, { backgroundColor: theme.border }]} />
                   ))}
                 </View>
 
@@ -205,14 +211,14 @@ export default function LanguageVitalityDashboard() {
                             {
                               height: `${(data.value / maxValue) * 100}%`,
                               backgroundColor:
-                                data.value === maxValue ? COLORS.primary : COLORS.primary + '60',
+                                data.value === maxValue ? theme.primary : theme.primary + '60',
                             },
                           ]}
                         >
-                          <Text style={styles.barValue}>{data.label}</Text>
+                          <Text style={[styles.barValue, { color: theme.text }]}>{data.label}</Text>
                         </View>
                       </View>
-                      <Text style={styles.barLabel}>{data.month}</Text>
+                      <Text style={[styles.barLabel, { color: theme.textSecondary }]}>{data.month}</Text>
                     </View>
                   ))}
                 </View>
@@ -221,14 +227,14 @@ export default function LanguageVitalityDashboard() {
           </View>
 
           {/* Leaderboard Section */}
-          <View style={styles.leaderboardCard}>
+          <View style={[styles.leaderboardCard, { backgroundColor: theme.surface }]}>
             <View style={styles.leaderboardHeader}>
               <View style={styles.leaderboardHeaderLeft}>
-                <MaterialCommunityIcons name="trophy" size={24} color={COLORS.accent} />
-                <Text style={styles.leaderboardTitle}>Top Contributors</Text>
+                <MaterialCommunityIcons name="trophy" size={24} color={theme.accent || theme.secondary} />
+                <Text style={[styles.leaderboardTitle, { color: theme.text }]}>Top Contributors</Text>
               </View>
               <TouchableOpacity>
-                <Text style={styles.viewAllText}>View All</Text>
+                <Text style={[styles.viewAllText, { color: theme.primary }]}>View All</Text>
               </TouchableOpacity>
             </View>
 
@@ -237,43 +243,43 @@ export default function LanguageVitalityDashboard() {
               renderItem={renderLeaderboardItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.border }]} />}
             />
           </View>
 
           {/* Insights Section */}
           <View style={styles.insightsSection}>
-            <View style={styles.insightCard}>
+            <View style={[styles.insightCard, { backgroundColor: theme.surface }]}>
               <View style={styles.insightIcon}>
-                <MaterialCommunityIcons name="chart-line" size={32} color={COLORS.success} />
+                <MaterialCommunityIcons name="chart-line" size={32} color={theme.success} />
               </View>
               <View style={styles.insightContent}>
-                <Text style={styles.insightTitle}>Growing Community</Text>
-                <Text style={styles.insightText}>
+                <Text style={[styles.insightTitle, { color: theme.text }]}>Growing Community</Text>
+                <Text style={[styles.insightText, { color: theme.textSecondary }]}>
                   +342 new learners joined this month, marking a 23% increase
                 </Text>
               </View>
             </View>
 
-            <View style={styles.insightCard}>
+            <View style={[styles.insightCard, { backgroundColor: theme.surface }]}>
               <View style={styles.insightIcon}>
-                <MaterialCommunityIcons name="fire" size={32} color={COLORS.error} />
+                <MaterialCommunityIcons name="fire" size={32} color={theme.error} />
               </View>
               <View style={styles.insightContent}>
-                <Text style={styles.insightTitle}>Most Active Day</Text>
-                <Text style={styles.insightText}>
+                <Text style={[styles.insightTitle, { color: theme.text }]}>Most Active Day</Text>
+                <Text style={[styles.insightText, { color: theme.textSecondary }]}>
                   Sundays see the highest engagement with 45% more contributions
                 </Text>
               </View>
             </View>
 
-            <View style={styles.insightCard}>
+            <View style={[styles.insightCard, { backgroundColor: theme.surface }]}>
               <View style={styles.insightIcon}>
-                <MaterialCommunityIcons name="star" size={32} color={COLORS.accent} />
+                <MaterialCommunityIcons name="star" size={32} color={theme.accent || theme.tertiary || theme.primary} />
               </View>
               <View style={styles.insightContent}>
-                <Text style={styles.insightTitle}>Quality Content</Text>
-                <Text style={styles.insightText}>
+                <Text style={[styles.insightTitle, { color: theme.text }]}>Quality Content</Text>
+                <Text style={[styles.insightText, { color: theme.textSecondary }]}>
                   87% approval rate for submissions with rich cultural context
                 </Text>
               </View>

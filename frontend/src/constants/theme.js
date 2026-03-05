@@ -18,6 +18,29 @@ export const COLORS = {
   inputBackground: 'rgba(15, 23, 42, 0.6)',
 };
 
+export const LIGHT_COLORS = {
+  primary: '#2A9D8F',     // Slightly darker teal for light mode contrast
+  secondary: '#E76F51',   // Burnt sienna for warmth
+  accent: '#F4A261',      // Sandy brown
+  background: '#F8FAFC',  // Slate 50
+  surface: '#FFFFFF',     // White
+  text: '#1E293B',        // Slate 800
+  textSecondary: '#64748B', // Slate 500
+  error: '#EF4444',
+  success: '#10B981',
+  border: '#E2E8F0',      // Slate 200
+  glassLight: 'rgba(15, 23, 42, 0.05)',
+  glassMedium: 'rgba(15, 23, 42, 0.1)',
+  glassDark: 'rgba(255, 255, 255, 0.8)',
+  glassOverlay: 'rgba(255, 255, 255, 0.6)',
+  cardBackground: 'rgba(255, 255, 255, 0.85)',
+  cardBorder: 'rgba(148, 163, 184, 0.2)',
+  inputBackground: 'rgba(241, 245, 249, 0.8)',
+};
+
+export const DARK_COLORS = { ...COLORS }; // Default is dark
+
+
 export const SPACING = {
   xs: 4,
   s: 8,

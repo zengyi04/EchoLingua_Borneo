@@ -9,6 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { playSound } from '../services/soundService';
 import { translateText } from '../services/translationService';
+import { useTheme } from '../context/ThemeContext';
 import {
   forceCleanupActiveRecording,
   prepareSingleRecording,
@@ -36,6 +37,7 @@ const COMMUNITY_STORIES_KEY = '@echolingua_stories'; // For StoryLibraryScreen (
 const USERS_DB_KEY = '@echolingua_users_database';
 
 export default function RecordScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
   const isStoryMode = route.params?.createStory === true;
@@ -916,27 +918,27 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
           >
-            <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+            <Ionicons name="chevron-back" size={24} color={theme.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Voice Recording</Text>
-          <Text style={styles.headerSubtitle}>Preserve indigenous voices for future generations</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Voice Recording</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Preserve indigenous voices for future generations</Text>
         </View>
         
         <View style={styles.content}>
           {/* Timer Display */}
           <View style={styles.timerContainer}>
-            <Text style={styles.timerText}>{formatTime(recordingTime)}</Text>
+            <Text style={[styles.timerText, { color: theme.text }]}>{formatTime(recordingTime)}</Text>
             {isRecording && (
               <View style={styles.recordingIndicator}>
-                <View style={styles.redDot} />
-                <Text style={styles.recordingText}>{isPaused ? 'PAUSED' : 'RECORDING'}</Text>
+                <View style={[styles.redDot, { backgroundColor: theme.error }]} />
+                <Text style={[styles.recordingText, { color: theme.error }]}>{isPaused ? 'PAUSED' : 'RECORDING'}</Text>
               </View>
             )}
           </View>
@@ -950,7 +952,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   styles.waveBar,
                   {
                     height: height,
-                    backgroundColor: isRecording ? COLORS.error : COLORS.textSecondary,
+                    backgroundColor: isRecording ? theme.error : theme.textSecondary,
                   },
                 ]}
               />
@@ -958,12 +960,13 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
           </View>
 
           {/* Main Record Button */}
-          <View style={styles.controlsContainer}>
+          <View style={[styles.controlsContainer, { backgroundColor: theme.surface }]}>
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
               <TouchableOpacity
                 style={[
                   styles.recordButton,
-                  isRecording && styles.recordButtonActive,
+                  isRecording && [styles.recordButtonActive, { backgroundColor: theme.error }],
+                  !isRecording && { backgroundColor: theme.primary }
                 ]}
                 onPress={handleRecord}
                 disabled={isRecording}
@@ -971,7 +974,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                 <Ionicons
                   name="mic"
                   size={64}
-                  color={COLORS.surface}
+                  color={theme.onPrimary || '#FFFFFF'}
                 />
               </TouchableOpacity>
             </Animated.View>
@@ -980,21 +983,21 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
             {isRecording && (
               <View style={styles.actionButtons}>
                 <TouchableOpacity 
-                  style={styles.actionButton} 
+                  style={[styles.actionButton, { backgroundColor: theme.surface }]} 
                   onPress={handlePause}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name={isPaused ? "play" : "pause"} size={28} color={COLORS.primary} />
-                  <Text style={styles.actionButtonText}>{isPaused ? 'Resume' : 'Pause'}</Text>
+                  <Ionicons name={isPaused ? "play" : "pause"} size={28} color={theme.primary} />
+                  <Text style={[styles.actionButtonText, { color: theme.primary }]}>{isPaused ? 'Resume' : 'Pause'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  style={[styles.actionButton, styles.stopButton]} 
+                  style={[styles.actionButton, styles.stopButton, { backgroundColor: theme.surface }]} 
                   onPress={handleStop}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="stop" size={28} color={COLORS.error} />
-                  <Text style={styles.actionButtonText}>Stop</Text>
+                  <Ionicons name="stop" size={28} color={theme.error} />
+                  <Text style={[styles.actionButtonText, { color: theme.error }]}>Stop</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1002,12 +1005,12 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
             {/* Upload Audio File Button */}
             {!isRecording && !hasRecording && (
               <TouchableOpacity
-                style={styles.uploadAudioButton}
+                style={[styles.uploadAudioButton, { backgroundColor: theme.glassMedium, borderColor: theme.primary }]}
                 onPress={handlePickAudioFile}
                 activeOpacity={0.7}
               >
-                <Ionicons name="folder-open" size={24} color={COLORS.primary} />
-                <Text style={styles.uploadAudioButtonText}>Or Pick from Phone</Text>
+                <Ionicons name="folder-open" size={24} color={theme.primary} />
+                <Text style={[styles.uploadAudioButtonText, { color: theme.primary }]}>Or Pick from Phone</Text>
               </TouchableOpacity>
             )}
 
@@ -1016,34 +1019,34 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
           {/* NEW: Playback Controls - Redesigned */}
           {hasRecording && !isRecording && (
             <View style={styles.recordedAudioContainer}>
-              <View style={styles.recordedAudioCard}>
-                <View style={styles.recordedAudioHeader}>
-                  <Ionicons name="checkmark-circle" size={32} color={COLORS.success} />
+              <View style={[styles.recordedAudioCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={[styles.recordedAudioHeader, { borderBottomColor: theme.border }]}>
+                  <Ionicons name="checkmark-circle" size={32} color={theme.success || '#4CAF50'} />
                   <View style={styles.recordedAudioInfo}>
-                    <Text style={styles.recordedAudioTitle}>Recording Saved ✓</Text>
-                    <Text style={styles.recordedAudioDuration}>{formatTime(recordingTime)}</Text>
+                    <Text style={[styles.recordedAudioTitle, { color: theme.text }]}>Recording Saved ✓</Text>
+                    <Text style={[styles.recordedAudioDuration, { color: theme.textSecondary }]}>{formatTime(recordingTime)}</Text>
                   </View>
                 </View>
 
                 {/* Play Recording Button */}
                 <TouchableOpacity 
-                  style={styles.playRecordingButton} 
+                  style={[styles.playRecordingButton, { backgroundColor: theme.primary }]} 
                   onPress={handlePlayback}
                   activeOpacity={0.7}
                 >
                   <Ionicons
                     name={isPlaying ? "pause-circle" : "play-circle"}
                     size={28}
-                    color={COLORS.surface}
+                    color={theme.onPrimary || '#FFFFFF'}
                   />
-                  <Text style={styles.playRecordingButtonText}>
+                  <Text style={[styles.playRecordingButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>
                     {isPlaying ? 'Pause Playback' : 'Play Recording'}
                   </Text>
                 </TouchableOpacity>
 
                 {/* NEW: Record Another Button */}
                 <TouchableOpacity 
-                  style={styles.recordAnotherButton} 
+                  style={[styles.recordAnotherButton, { backgroundColor: theme.glassMedium, borderColor: theme.accent }]} 
                   onPress={() => {
                     setHasRecording(false);
                     setRecordingUri(null);
@@ -1053,8 +1056,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add-circle" size={20} color={COLORS.accent} />
-                  <Text style={styles.recordAnotherButtonText}>Record Another</Text>
+                  <Ionicons name="add-circle" size={20} color={theme.accent} />
+                  <Text style={[styles.recordAnotherButtonText, { color: theme.accent }]}>Record Another</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1062,24 +1065,24 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
           {/* Language Selector - Enhanced with All World Languages */}
           {showLanguageSelector && (
-            <View style={styles.languageSection}>
+            <View style={[styles.languageSection, { backgroundColor: theme.surface }]}>
               <View style={styles.languageSectionHeader}>
-                <MaterialCommunityIcons name="translate" size={28} color={COLORS.primary} />
+                <MaterialCommunityIcons name="translate" size={28} color={theme.primary} />
                 <View style={styles.languageHeaderTextContainer}>
-                  <Text style={styles.languageSectionTitle}>Select Language for Transcript</Text>
-                  <Text style={styles.languageSectionSubtitle}>
+                  <Text style={[styles.languageSectionTitle, { color: theme.text }]}>Select Language for Transcript</Text>
+                  <Text style={[styles.languageSectionSubtitle, { color: theme.textSecondary }]}>
                     {WORLD_LANGUAGES.length} languages available • Indigenous languages prioritized
                   </Text>
                 </View>
               </View>
 
               {/* Search Bar for Languages */}
-              <View style={styles.searchContainer}>
-                <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+              <View style={[styles.searchContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { color: theme.text }]}
                   placeholder="Search 70+ languages..."
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={languageSearch}
                   onChangeText={setLanguageSearch}
                   autoCapitalize="none"
@@ -1091,7 +1094,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                     style={styles.clearSearchButton}
                     activeOpacity={0.6}
                   >
-                    <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+                    <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1151,7 +1154,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                             )}
                           </View>
                           {selectedLanguage === lang.id && (
-                            <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                            <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1162,8 +1165,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
               {selectedLanguage && (
                 <View style={styles.selectedLanguageInfo}>
-                  <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-                  <Text style={styles.selectedLanguageText}>
+                  <Ionicons name="checkmark-circle" size={20} color={theme.success} />
+                  <Text style={[styles.selectedLanguageText, { color: theme.text }]}>
                     Selected: {WORLD_LANGUAGES.find(l => l.id === selectedLanguage)?.label}
                   </Text>
                 </View>
@@ -1171,20 +1174,20 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
               {selectedLanguage && !transcript && (
                 <TouchableOpacity
-                  style={styles.generateButton}
+                  style={[styles.generateButton, { backgroundColor: theme.primary }]}
                   onPress={handleGenerateTranscript}
                   disabled={isGenerating}
                   activeOpacity={0.8}
                 >
                   {isGenerating ? (
                     <>
-                      <MaterialCommunityIcons name="loading" size={24} color={COLORS.surface} />
-                      <Text style={styles.generateButtonText}>Generating AI Transcript...</Text>
+                      <MaterialCommunityIcons name="loading" size={24} color={theme.onPrimary || '#FFFFFF'} />
+                      <Text style={[styles.generateButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>Generating AI Transcript...</Text>
                     </>
                   ) : (
                     <>
-                      <MaterialCommunityIcons name="auto-fix" size={24} color={COLORS.surface} />
-                      <Text style={styles.generateButtonText}>🤖 Generate AI Transcript</Text>
+                      <MaterialCommunityIcons name="auto-fix" size={24} color={theme.onPrimary || '#FFFFFF'} />
+                      <Text style={[styles.generateButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>🤖 Generate AI Transcript</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -1194,19 +1197,19 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
           {/* Transcript Display */}
           {transcript && (
-            <View style={styles.transcriptContainer}>
+            <View style={[styles.transcriptContainer, { backgroundColor: theme.surface }]}>
               <View style={styles.transcriptHeader}>
-                <Ionicons name="document-text" size={20} color={COLORS.primary} />
-                <Text style={styles.transcriptTitle}>Auto-generated Transcript ({WORLD_LANGUAGES.find(l => l.id === selectedLanguage)?.label})</Text>
+                <Ionicons name="document-text" size={20} color={theme.primary} />
+                <Text style={[styles.transcriptTitle, { color: theme.text }]}>Auto-generated Transcript ({WORLD_LANGUAGES.find(l => l.id === selectedLanguage)?.label})</Text>
               </View>
-              <ScrollView style={styles.transcriptScroll} nestedScrollEnabled>
+              <ScrollView style={[styles.transcriptScroll, { borderColor: theme.border, backgroundColor: theme.background }]} nestedScrollEnabled>
                 <TextInput
-                  style={styles.transcriptText}
+                  style={[styles.transcriptText, { color: theme.text }]}
                   value={transcript}
                   onChangeText={setTranscript}
                   multiline
                   placeholder="Transcript will appear here..."
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                 />
               </ScrollView>
 
@@ -1214,19 +1217,22 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
               {isStoryMode && (
                 <View style={styles.storyCreationSection}>
                   <View style={styles.storyInputHeader}>
-                    <MaterialCommunityIcons name="book-edit" size={24} color={COLORS.secondary} />
-                    <Text style={styles.storyInputLabel}>Story Title</Text>
+                    <MaterialCommunityIcons name="book-edit" size={24} color={theme.secondary} />
+                    <Text style={[styles.storyInputLabel, { color: theme.text }]}>Story Title</Text>
                   </View>
                   <TextInput
-                    style={styles.storyTitleInput}
+                    style={[
+                      styles.storyTitleInput, 
+                      { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }
+                    ]}
                     value={storyTitle}
                     onChangeText={setStoryTitle}
                     placeholder="Enter a title for your folktale..."
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={theme.textSecondary}
                     maxLength={100}
                   />
                   <TouchableOpacity
-                    style={[styles.saveStoryButton, isSavingStory && styles.saveStoryButtonDisabled]}
+                    style={[styles.saveStoryButton, isSavingStory && styles.saveStoryButtonDisabled, { backgroundColor: theme.secondary }]}
                     onPress={handleSaveAsStory}
                     disabled={isSavingStory}
                     activeOpacity={0.8}
@@ -1234,9 +1240,9 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                     <MaterialCommunityIcons 
                       name={isSavingStory ? "loading" : "cloud-upload"} 
                       size={24} 
-                      color={COLORS.surface} 
+                      color={theme.onPrimary || '#FFFFFF'} 
                     />
-                    <Text style={styles.saveStoryButtonText}>
+                    <Text style={[styles.saveStoryButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>
                       {isSavingStory ? 'Saving to Archive...' : 'Publish to Community Archive'}
                     </Text>
                   </TouchableOpacity>
@@ -1247,22 +1253,22 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
           {/* Upload Option */}
           <TouchableOpacity
-            style={styles.uploadOption}
+            style={[styles.uploadOption, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={handlePickAudioFile}
           >
-            <Ionicons name="cloud-upload-outline" size={24} color={COLORS.secondary} />
-            <Text style={styles.uploadOptionText}>Import Audio File</Text>
+            <Ionicons name="cloud-upload-outline" size={24} color={theme.secondary} />
+            <Text style={[styles.uploadOptionText, { color: theme.textSecondary }]}>Import Audio File</Text>
           </TouchableOpacity>
 
           {/* Submit Button */}
           {hasRecording && transcript && (
             <TouchableOpacity 
-              style={styles.submitButton} 
+              style={[styles.submitButton, { backgroundColor: theme.success || '#4CAF50' }]} 
               onPress={handleSubmit}
               activeOpacity={0.8}
             >
-              <Text style={styles.submitButtonText}>Submit Recording</Text>
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.surface} />
+              <Text style={[styles.submitButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>Submit Recording</Text>
+              <Ionicons name="checkmark-circle" size={24} color={theme.onPrimary || '#FFFFFF'} />
             </TouchableOpacity>
           )}
 
@@ -1270,10 +1276,10 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
           {recordings.length > 0 && (
             <View style={styles.previousRecordingsSection}>
               <View style={styles.sectionHeader}>
-                <Ionicons name="folder-open" size={24} color={COLORS.primary} />
-                <Text style={styles.sectionTitle}>Previous Recordings</Text>
-                <View style={styles.recordingBadge}>
-                  <Text style={styles.recordingBadgeText}>{recordings.length}</Text>
+                <Ionicons name="folder-open" size={24} color={theme.primary} />
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Previous Recordings</Text>
+                <View style={[styles.recordingBadge, { backgroundColor: theme.glassMedium }]}>
+                  <Text style={[styles.recordingBadgeText, { color: theme.primary }]}>{recordings.length}</Text>
                 </View>
               </View>
 
@@ -1282,23 +1288,23 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                 keyExtractor={(item) => item.id}
                 scrollEnabled={false}
                 renderItem={({ item, index }) => (
-                  <View style={styles.recordingListItem}>
+                  <View style={[styles.recordingListItem, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                     <View style={styles.recordingListItemContent}>
-                      <View style={styles.recordingNumberBadge}>
-                        <Text style={styles.recordingNumber}>{recordings.length - index}</Text>
+                      <View style={[styles.recordingNumberBadge, { backgroundColor: theme.glassMedium }]}>
+                        <Text style={[styles.recordingNumber, { color: theme.primary }]}>{recordings.length - index}</Text>
                       </View>
                       
                       <View style={styles.recordingListItemInfo}>
-                        <Text style={styles.recordingListItemTime}>
+                        <Text style={[styles.recordingListItemTime, { color: theme.text }]}>
                           {new Date(item.timestamp).toLocaleDateString()} • {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Text>
                         <View style={styles.recordingListItemDetails}>
-                          <Text style={styles.recordingListItemDuration}>
-                            <Ionicons name="time" size={14} color={COLORS.textSecondary} /> {formatTime(item.duration)}
+                          <Text style={[styles.recordingListItemDuration, { color: theme.textSecondary }]}>
+                            <Ionicons name="time" size={14} color={theme.textSecondary} /> {formatTime(item.duration)}
                           </Text>
                           {item.language && (
-                            <Text style={styles.recordingListItemLanguage}>
-                              <Ionicons name="language" size={14} color={COLORS.textSecondary} /> {WORLD_LANGUAGES.find(l => l.id === item.language)?.label || 'Unknown'}
+                            <Text style={[styles.recordingListItemLanguage, { color: theme.textSecondary }]}>
+                              <Ionicons name="language" size={14} color={theme.textSecondary} /> {WORLD_LANGUAGES.find(l => l.id === item.language)?.label || 'Unknown'}
                             </Text>
                           )}
                         </View>
@@ -1315,7 +1321,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                         <Ionicons
                           name={playingRecordingId === item.id ? "pause-circle" : "play-circle"}
                           size={28}
-                          color={playingRecordingId === item.id ? COLORS.primary : COLORS.textSecondary}
+                          color={playingRecordingId === item.id ? theme.primary : theme.textSecondary}
                         />
                       </TouchableOpacity>
 
@@ -1324,7 +1330,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                         onPress={() => openShareModal(item)}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="share-social" size={24} color={COLORS.accent} />
+                        <Ionicons name="share-social" size={24} color={theme.accent} />
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -1345,7 +1351,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                         }}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="trash" size={24} color={COLORS.error} />
+                        <Ionicons name="trash" size={24} color={theme.error} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1355,11 +1361,11 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
           )}
 
           {/* Info Card */}
-          <View style={styles.infoCard}>
-            <Ionicons name="information-circle" size={24} color={COLORS.accent} />
+          <View style={[styles.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="information-circle" size={24} color={theme.accent} />
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>Recording Tips</Text>
-              <Text style={styles.infoText}>
+              <Text style={[styles.infoTitle, { color: theme.text }]}>Recording Tips</Text>
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
                 • Find a quiet environment{'\n'}
                 • Speak clearly and naturally{'\n'}
                 • Hold phone 6-8 inches from mouth{'\n'}
@@ -1378,28 +1384,28 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
         onRequestClose={() => setShowShareModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.shareModalContainer}>
-            <View style={styles.shareModalHeader}>
+          <View style={[styles.shareModalContainer, { backgroundColor: theme.surface }]}>
+            <View style={[styles.shareModalHeader, { borderBottomColor: theme.border }]}>
               <View>
-                <Text style={styles.shareModalTitle}>Share to Community</Text>
-                <Text style={styles.shareModalSubtitle}>Add details to your recording</Text>
+                <Text style={[styles.shareModalTitle, { color: theme.text }]}>Share to Community</Text>
+                <Text style={[styles.shareModalSubtitle, { color: theme.textSecondary }]}>Add details to your recording</Text>
               </View>
               <TouchableOpacity
                 style={styles.closeModalButton}
                 onPress={() => setShowShareModal(false)}
               >
-                <Ionicons name="close-circle" size={32} color={COLORS.textSecondary} />
+                <Ionicons name="close-circle" size={32} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.shareModalContent} showsVerticalScrollIndicator={false}>
               {/* Title Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Title *</Text>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Title *</Text>
                 <TextInput
-                  style={styles.shareInput}
+                  style={[styles.shareInput, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                   placeholder="Give your recording a title..."
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={shareTitle}
                   onChangeText={setShareTitle}
                   maxLength={100}
@@ -1408,11 +1414,11 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
               {/* Description Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description *</Text>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description *</Text>
                 <TextInput
-                  style={[styles.shareInput, styles.shareTextArea]}
+                  style={[styles.shareInput, styles.shareTextArea, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                   placeholder="Describe your recording, add context, or share its cultural significance..."
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={shareDescription}
                   onChangeText={setShareDescription}
                   multiline
@@ -1420,19 +1426,20 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   maxLength={500}
                   textAlignVertical="top"
                 />
-                <Text style={styles.characterCount}>{shareDescription.length}/500</Text>
+                <Text style={[styles.characterCount, { color: theme.textSecondary }]}>{shareDescription.length}/500</Text>
               </View>
 
               {/* Category Selector */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Category</Text>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category</Text>
                 <View style={styles.categoryButtons}>
                   {['Story', 'Song', 'Lesson', 'Conversation', 'Other'].map((cat) => (
                     <TouchableOpacity
                       key={cat}
                       style={[
                         styles.categoryButton,
-                        shareCategory === cat && styles.categoryButtonActive
+                        { backgroundColor: theme.glassMedium, borderColor: theme.border },
+                        shareCategory === cat && [styles.categoryButtonActive, { backgroundColor: theme.primary, borderColor: theme.primary }]
                       ]}
                       onPress={() => {
                         setShareCategory(cat);
@@ -1441,7 +1448,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                     >
                       <Text style={[
                         styles.categoryButtonText,
-                        shareCategory === cat && styles.categoryButtonTextActive
+                        { color: theme.text },
+                        shareCategory === cat && [styles.categoryButtonTextActive, { color: theme.onPrimary || '#FFFFFF' }]
                       ]}>
                         {cat}
                       </Text>
@@ -1506,17 +1514,17 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
         onRequestClose={() => setShowRecipientModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.shareModalContainer}>
-            <View style={styles.shareModalHeader}>
+          <View style={[styles.shareModalContainer, { backgroundColor: theme.surface }]}>
+            <View style={[styles.shareModalHeader, { borderBottomColor: theme.border }]}>
               <View>
-                <Text style={styles.shareModalTitle}>Share Recording</Text>
-                <Text style={styles.shareModalSubtitle}>Choose who will receive this recording</Text>
+                <Text style={[styles.shareModalTitle, { color: theme.text }]}>Share Recording</Text>
+                <Text style={[styles.shareModalSubtitle, { color: theme.textSecondary }]}>Choose who will receive this recording</Text>
               </View>
               <TouchableOpacity
                 style={styles.closeModalButton}
                 onPress={() => setShowRecipientModal(false)}
               >
-                <Ionicons name="close-circle" size={32} color={COLORS.textSecondary} />
+                <Ionicons name="close-circle" size={32} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -1525,7 +1533,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
               <TouchableOpacity
                 style={[
                   styles.recipientOption,
-                  selectedRecipients.includes('private') && styles.recipientOptionActive
+                  { backgroundColor: theme.glassMedium, borderColor: theme.border },
+                  selectedRecipients.includes('private') && [styles.recipientOptionActive, { borderColor: theme.primary, backgroundColor: theme.primary + '10' }]
                 ]}
                 onPress={() => {
                   if (selectedRecipients.includes('private')) {
@@ -1535,17 +1544,17 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   }
                 }}
               >
-                <View style={styles.recipientIconContainer}>
-                  <Ionicons name="lock-closed" size={24} color={COLORS.secondary} />
+                <View style={[styles.recipientIconContainer, { backgroundColor: theme.secondary + '20' }]}>
+                  <Ionicons name="lock-closed" size={24} color={theme.secondary} />
                 </View>
                 <View style={styles.recipientInfo}>
-                  <Text style={styles.recipientTitle}>Private Library</Text>
-                  <Text style={styles.recipientDescription}>Keep this recording in your personal collection only</Text>
+                  <Text style={[styles.recipientTitle, { color: theme.text }]}>Private Library</Text>
+                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Keep this recording in your personal collection only</Text>
                 </View>
                 <Ionicons
                   name={selectedRecipients.includes('private') ? 'checkbox' : 'square-outline'}
                   size={28}
-                  color={selectedRecipients.includes('private') ? COLORS.primary : COLORS.textSecondary}
+                  color={selectedRecipients.includes('private') ? theme.primary : theme.textSecondary}
                 />
               </TouchableOpacity>
 
@@ -1553,7 +1562,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
               <TouchableOpacity
                 style={[
                   styles.recipientOption,
-                  selectedRecipients.includes('community') && styles.recipientOptionActive
+                  { backgroundColor: theme.glassMedium, borderColor: theme.border },
+                  selectedRecipients.includes('community') && [styles.recipientOptionActive, { borderColor: theme.primary, backgroundColor: theme.primary + '10' }]
                 ]}
                 onPress={() => {
                   if (selectedRecipients.includes('community')) {
@@ -1563,17 +1573,17 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   }
                 }}
               >
-                <View style={styles.recipientIconContainer}>
-                  <Ionicons name="globe" size={24} color={COLORS.primary} />
+                <View style={[styles.recipientIconContainer, { backgroundColor: theme.primary + '20' }]}>
+                  <Ionicons name="globe" size={24} color={theme.primary} />
                 </View>
                 <View style={styles.recipientInfo}>
-                  <Text style={styles.recipientTitle}>Community Archive</Text>
-                  <Text style={styles.recipientDescription}>Share with the entire community for cultural preservation</Text>
+                  <Text style={[styles.recipientTitle, { color: theme.text }]}>Community Archive</Text>
+                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Share with the entire community for cultural preservation</Text>
                 </View>
                 <Ionicons
                   name={selectedRecipients.includes('community') ? 'checkbox' : 'square-outline'}
                   size={28}
-                  color={selectedRecipients.includes('community') ? COLORS.primary : COLORS.textSecondary}
+                  color={selectedRecipients.includes('community') ? theme.primary : theme.textSecondary}
                 />
               </TouchableOpacity>
 
@@ -1602,7 +1612,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                       }}
                     >
                       <View style={styles.recipientIconContainer}>
-                        <Ionicons name="person-circle" size={24} color={COLORS.accent} />
+                        <Ionicons name="person-circle" size={24} color={theme.accent} />
                       </View>
                       <View style={styles.recipientInfo}>
                         <Text style={styles.recipientTitle}>{contact.name}</Text>
@@ -1611,7 +1621,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                       <Ionicons
                         name={selectedRecipients.includes(contact.id) ? 'checkbox' : 'square-outline'}
                         size={28}
-                        color={selectedRecipients.includes(contact.id) ? COLORS.primary : COLORS.textSecondary}
+                        color={selectedRecipients.includes(contact.id) ? theme.primary : theme.textSecondary}
                       />
                     </TouchableOpacity>
                   ))}
@@ -1620,7 +1630,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
               {emergencyContacts.length > 0 && emergencyContactsWithApp.length === 0 && (
                 <View style={styles.noContactsBanner}>
-                  <Ionicons name="people-outline" size={24} color={COLORS.textSecondary} />
+                  <Ionicons name="people-outline" size={24} color={theme.textSecondary} />
                   <Text style={styles.noContactsText}>
                     You have {emergencyContacts.length} emergency contact(s), but none of them have the app installed yet. Only contacts with app accounts can receive recordings.
                   </Text>
@@ -1629,7 +1639,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
               
               {emergencyContacts.length === 0 && (
                 <View style={styles.noContactsBanner}>
-                  <Ionicons name="people-outline" size={24} color={COLORS.textSecondary} />
+                  <Ionicons name="people-outline" size={24} color={theme.textSecondary} />
                   <Text style={styles.noContactsText}>
                     No emergency contacts yet. Add contacts in your profile to share recordings with them.
                   </Text>
@@ -1638,9 +1648,9 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
               {/* Author Label Info */}
               {currentUser && (
-                <View style={styles.authorLabelBanner}>
-                  <Ionicons name="information-circle" size={20} color={COLORS.primary} />
-                  <Text style={styles.authorLabelText}>
+                <View style={[styles.authorLabelBanner, { backgroundColor: theme.primary + '20' }]}>
+                  <Ionicons name="information-circle" size={20} color={theme.primary} />
+                  <Text style={[styles.authorLabelText, { color: theme.text }]}>
                     This recording will be labeled: "Shared by {currentUser.fullName} ({currentUser.role})"
                   </Text>
                 </View>
@@ -1651,15 +1661,16 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
             <TouchableOpacity
               style={[
                 styles.saveRecipientButton,
-                selectedRecipients.length === 0 && styles.saveRecipientButtonDisabled
+                selectedRecipients.length === 0 && styles.saveRecipientButtonDisabled,
+                { backgroundColor: theme.primary }
               ]}
               onPress={handleSaveWithRecipients}
               disabled={selectedRecipients.length === 0}
             >
-              <Text style={styles.saveRecipientButtonText}>
+              <Text style={[styles.saveRecipientButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>
                 Save & Share ({selectedRecipients.length})
               </Text>
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.surface} />
+              <Ionicons name="checkmark-circle" size={24} color={theme.onPrimary || '#FFFFFF'} />
             </TouchableOpacity>
           </View>
         </View>

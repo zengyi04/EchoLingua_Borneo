@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
@@ -260,6 +261,7 @@ const SCENARIOS = BASE_SCENARIOS.map((item) => ({
 }));
 
 export default function LivingLanguageScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
   const [selectedScenario, setSelectedScenario] = useState(null);
@@ -487,45 +489,79 @@ export default function LivingLanguageScreen() {
   );
 
   const renderScenarioCard = ({ item }) => (
-    <TouchableOpacity style={[styles.scenarioCard, { borderLeftColor: item.color }]} onPress={() => {
-      setViewAllScenarios(false);
-      setSelectedScenario(item);
-      setSelectedCase(item.cases[0]);
-    }}>
-      <View style={[styles.scenarioIconContainer, { backgroundColor: item.color + '20' }]}>
+    <TouchableOpacity
+      style={[
+        styles.scenarioCard, 
+        { 
+          backgroundColor: theme.surface, 
+          borderLeftColor: item.color,
+          borderColor: 'transparent',
+          shadowColor: theme.shadow,
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3
+        }
+      ]}
+      onPress={() => {
+        setViewAllScenarios(false);
+        setSelectedScenario(item);
+        setSelectedCase(item.cases[0]);
+      }}
+    >
+      <View style={[styles.scenarioIconContainer, { backgroundColor: item.color + '15' }]}>
         <Ionicons name={item.icon} size={24} color={item.color} />
       </View>
       <View style={styles.scenarioTextContainer}>
-        <Text style={styles.scenarioTitle}>{item.title}</Text>
-        <Text style={styles.scenarioSubtitle}>{item.cases.length} cases</Text>
+        <Text style={[styles.scenarioTitle, { color: theme.text }]}>{item.title}</Text>
+        <Text style={[styles.scenarioSubtitle, { color: theme.textSecondary }]}>{item.cases.length} cases</Text>
       </View>
-      <Ionicons name="chevron-forward" size={22} color={COLORS.textSecondary} />
+      <Ionicons name="chevron-forward" size={22} color={theme.textSecondary} />
     </TouchableOpacity>
   );
 
   const renderCaseCardGridView = ({ item: scenario }) => (
     <View style={styles.scenarioGridSection} key={scenario.id}>
-      <View style={[styles.scenarioGridHeader, { borderLeftColor: scenario.color }]}>
-        <View style={[styles.scenarioGridIconContainer, { backgroundColor: scenario.color + '20' }]}>
+      <View 
+        style={[
+          styles.scenarioGridHeader, 
+          { 
+            borderLeftColor: scenario.color, 
+            backgroundColor: theme.surface, 
+            borderColor: 'transparent',
+            shadowColor: theme.shadow,
+            elevation: 2
+          }
+        ]}
+      >
+        <View style={[styles.scenarioGridIconContainer, { backgroundColor: scenario.color + '15' }]}>
           <Ionicons name={scenario.icon} size={20} color={scenario.color} />
         </View>
-        <Text style={styles.scenarioGridTitle}>{scenario.title}</Text>
+        <Text style={[styles.scenarioGridTitle, { color: theme.text }]}>{scenario.title}</Text>
       </View>
       <View style={styles.casesGridContainer}>
         {scenario.cases.map((caseItem) => (
           <TouchableOpacity
             key={caseItem.id}
-            style={[styles.caseCardGrid, { borderTopColor: scenario.color }]}
+            style={[
+              styles.caseCardGrid, 
+              { 
+                borderTopColor: scenario.color, 
+                backgroundColor: theme.surface, 
+                borderColor: 'transparent',
+                shadowColor: theme.shadow,
+                elevation: 3
+              }
+            ]}
             onPress={() => {
               setSelectedScenario(scenario);
               setSelectedCase(caseItem);
               setViewAllScenarios(false);
             }}
           >
-            <Text style={styles.caseCardGridTitle} numberOfLines={2}>{caseItem.title}</Text>
-            <View style={styles.caseCardGridMetaRow}>
-              <Ionicons name="chatbubbles-outline" size={12} color={COLORS.textSecondary} />
-              <Text style={styles.caseCardGridMeta}>{caseItem.conversations.length} lines</Text>
+            <Text style={[styles.caseCardGridTitle, { color: theme.text }]} numberOfLines={2}>{caseItem.title}</Text>
+            <View style={[styles.caseCardGridMetaRow, { borderColor: theme.border }]}>
+              <Ionicons name="chatbubbles-outline" size={12} color={theme.textSecondary} />
+              <Text style={[styles.caseCardGridMeta, { color: theme.textSecondary }]}>{caseItem.conversations.length} lines</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -534,42 +570,42 @@ export default function LivingLanguageScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.headerRow, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={handleBackFromPage} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={24} color={theme.primary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{selectedScenario ? selectedScenario.title : 'Living Language'}</Text>
-          <Text style={styles.headerSubtitle}>Choose language pair and practice real cases</Text>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>{selectedScenario ? selectedScenario.title : 'Living Language'}</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Choose language pair and practice real cases</Text>
         </View>
         {!selectedScenario && (
           <TouchableOpacity
             onPress={() => setViewAllScenarios(!viewAllScenarios)}
             style={styles.viewToggleButton}
           >
-            <Ionicons name={viewAllScenarios ? 'grid' : 'list'} size={22} color={COLORS.primary} />
+            <Ionicons name={viewAllScenarios ? 'grid' : 'list'} size={22} color={theme.primary} />
           </TouchableOpacity>
         )}
       </View>
 
-      <View style={styles.languageBar}>
-        <TouchableOpacity style={styles.languageChip} onPress={() => cycleLanguage('from')}>
-          <Text style={styles.languageChipLabel}>From</Text>
-          <Text style={styles.languageChipValue}>{fromLanguage.label}</Text>
+      <View style={[styles.languageBar, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <TouchableOpacity style={[styles.languageChip, { backgroundColor: theme.primary + '12', borderColor: theme.primary + '55' }]} onPress={() => cycleLanguage('from')}>
+          <Text style={[styles.languageChipLabel, { color: theme.textSecondary }]}>From</Text>
+          <Text style={[styles.languageChipValue, { color: theme.text }]}>{fromLanguage.label}</Text>
         </TouchableOpacity>
-        <Ionicons name="arrow-forward" size={20} color={COLORS.textSecondary} />
-        <TouchableOpacity style={styles.languageChip} onPress={() => cycleLanguage('to')}>
-          <Text style={styles.languageChipLabel}>To</Text>
-          <Text style={styles.languageChipValue}>{toLanguage.label}</Text>
+        <Ionicons name="arrow-forward" size={20} color={theme.textSecondary} />
+        <TouchableOpacity style={[styles.languageChip, { backgroundColor: theme.primary + '12', borderColor: theme.primary + '55' }]} onPress={() => cycleLanguage('to')}>
+          <Text style={[styles.languageChipLabel, { color: theme.textSecondary }]}>To</Text>
+          <Text style={[styles.languageChipValue, { color: theme.text }]}>{toLanguage.label}</Text>
         </TouchableOpacity>
       </View>
 
       {!selectedScenario && (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.infoCard}>
-            <MaterialCommunityIcons name="information" size={20} color={COLORS.accent} />
-            <Text style={styles.infoText}>{viewAllScenarios ? 'Browse all scenarios and cases. Tap any case to start practicing!' : 'Each scenario includes multiple case conversations. Tap a scenario to begin.'}</Text>
+          <View style={[styles.infoCard, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: theme.secondary }]}>
+            <MaterialCommunityIcons name="information" size={20} color={theme.secondary} />
+            <Text style={[styles.infoText, { color: theme.text }]}>{viewAllScenarios ? 'Browse all scenarios and cases. Tap any case to start practicing!' : 'Each scenario includes multiple case conversations. Tap a scenario to begin.'}</Text>
           </View>
           {!viewAllScenarios ? (
             <FlatList data={SCENARIOS} renderItem={renderScenarioCard} keyExtractor={(item) => item.id} scrollEnabled={false} contentContainerStyle={styles.scenarioList} />
@@ -583,60 +619,60 @@ export default function LivingLanguageScreen() {
 
       {selectedScenario && (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.caseSelectorContainer} contentContainerStyle={styles.caseSelectorContent}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.caseSelectorContainer, { backgroundColor: theme.surface, borderBottomColor: theme.border }]} contentContainerStyle={styles.caseSelectorContent}>
             {(selectedScenario.cases || []).map((caseItem) => (
               <TouchableOpacity
                 key={caseItem.id}
-                style={[styles.caseButton, selectedCase?.id === caseItem.id && styles.caseButtonActive]}
+                style={[styles.caseButton, { backgroundColor: theme.background, borderColor: theme.border }, selectedCase?.id === caseItem.id && { borderColor: theme.primary, backgroundColor: theme.primary + '18' }]}
                 onPress={() => setSelectedCase(caseItem)}
               >
-                <Text style={[styles.caseText, selectedCase?.id === caseItem.id && styles.caseTextActive]} numberOfLines={1}>{caseItem.title}</Text>
+                <Text style={[styles.caseText, { color: theme.textSecondary }, selectedCase?.id === caseItem.id && { color: theme.primary }]} numberOfLines={1}>{caseItem.title}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {loadingLanguage && <Text style={styles.loadingLang}>Updating conversations for selected languages...</Text>}
+          {loadingLanguage && <Text style={[styles.loadingLang, { color: theme.textSecondary }]}>Updating conversations for selected languages...</Text>}
 
           <ScrollView style={styles.content}>
             <View style={styles.conversationList}>
               {activeConversations.map((line) => (
-                <View key={line.id} style={[styles.lineCard, line.speaker === 'elder' ? styles.elderCard : styles.userCard]}>
-                  <View style={styles.lineHeader}>
-                    <Text style={styles.speakerTag}>{line.speaker === 'elder' ? 'Elder' : 'You'}</Text>
+                <View key={line.id} style={[styles.lineCard, { borderColor: theme.border }, line.speaker === 'elder' ? [styles.elderCard, { backgroundColor: theme.surface, borderLeftColor: theme.primary }] : [styles.userCard, { backgroundColor: theme.surfaceVariant, borderRightColor: theme.secondary }]]}>
+                  <View style={[styles.lineHeader, { borderBottomColor: theme.border }]}>
+                    <Text style={[styles.speakerTag, { color: theme.textSecondary }]}>{line.speaker === 'elder' ? 'Elder' : 'You'}</Text>
                     <TouchableOpacity onPress={() => playLine(line.id, line.indigenous)}>
-                      <Ionicons name={playingAudio === line.id ? 'pause-circle' : 'play-circle'} size={22} color={COLORS.primary} />
+                      <Ionicons name={playingAudio === line.id ? 'pause-circle' : 'play-circle'} size={22} color={theme.primary} />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.lineText}>{line.indigenous}</Text>
-                  {showTranslation && <Text style={styles.translationText}>{line.translation}</Text>}
+                  <Text style={[styles.lineText, { color: theme.text }]}>{line.indigenous}</Text>
+                  {showTranslation && <Text style={[styles.translationText, { color: theme.textSecondary }]}>{line.translation}</Text>}
                 </View>
               ))}
             </View>
 
-            <View style={styles.practiceSection}>
-              <View style={styles.practiceHeader}>
-                <Text style={styles.practiceTitle}>Record Response</Text>
+            <View style={[styles.practiceSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={[styles.practiceHeader, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.practiceTitle, { color: theme.text }]}>Record Response</Text>
                 <TouchableOpacity onPress={() => setShowTranslation((prev) => !prev)}>
-                  <Ionicons name={showTranslation ? 'eye-outline' : 'eye-off-outline'} size={22} color={COLORS.primary} />
+                  <Ionicons name={showTranslation ? 'eye-outline' : 'eye-off-outline'} size={22} color={theme.primary} />
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
                 style={[styles.recordButton, isRecording && styles.recordButtonActive]}
                 onPress={isRecording ? stopRecord : startRecord}
               >
-                <Ionicons name={isRecording ? 'stop-circle' : 'mic'} size={22} color={COLORS.surface} />
-                <Text style={styles.recordButtonText}>{isRecording ? 'Stop & Score' : 'Start Recording'}</Text>
+                <Ionicons name={isRecording ? 'stop-circle' : 'mic'} size={22} color={theme.card} />
+                <Text style={[styles.recordButtonText, { color: theme.card }]}>{isRecording ? 'Stop & Score' : 'Start Recording'}</Text>
               </TouchableOpacity>
 
-              <Text style={styles.recordsTitle}>Saved Results for This Case</Text>
+              <Text style={[styles.recordsTitle, { color: theme.text }]}>Saved Results for This Case</Text>
               {filteredRecords.length === 0 && (
-                <Text style={styles.emptyRecordsText}>No records yet. Record a response to see accuracy, grammar, and vocabulary scores.</Text>
+                <Text style={[styles.emptyRecordsText, { color: theme.textSecondary }]}>No records yet. Record a response to see accuracy, grammar, and vocabulary scores.</Text>
               )}
               {filteredRecords.map((entry) => (
-                <View key={entry.id} style={styles.recordItem}>
-                  <Text style={styles.recordCase}>{entry.caseTitle}</Text>
-                  <Text style={styles.recordMeta}>{entry.fromLanguage} to {entry.toLanguage}</Text>
-                  <Text style={styles.recordScores}>
+                <View key={entry.id} style={[styles.recordItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, borderLeftColor: theme.success }]}>
+                  <Text style={[styles.recordCase, { color: theme.text }]}>{entry.caseTitle}</Text>
+                  <Text style={[styles.recordMeta, { color: theme.textSecondary }]}>{entry.fromLanguage} to {entry.toLanguage}</Text>
+                  <Text style={[styles.recordScores, { color: theme.primary }]}>
                     Accuracy {entry.scores.accuracy}% | Grammar {entry.scores.grammar}% | Vocabulary {entry.scores.vocabulary}% | Overall {entry.scores.overall}%
                   </Text>
                 </View>
@@ -726,11 +762,39 @@ const styles = StyleSheet.create({
   scenarioTextContainer: { flex: 1 },
   scenarioTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
   scenarioSubtitle: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
-  caseSelectorContainer: { backgroundColor: COLORS.glassLight, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.4)' },
-  caseSelectorContent: { paddingHorizontal: SPACING.m, paddingVertical: SPACING.s, gap: SPACING.s },
-  caseButton: { backgroundColor: COLORS.background, borderRadius: SPACING.s, paddingHorizontal: SPACING.m, paddingVertical: SPACING.s, borderWidth: 1.2, borderColor: COLORS.border },
-  caseButtonActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '18' },
-  caseText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600', maxWidth: 160 },
+  caseSelectorContainer: { 
+    backgroundColor: COLORS.glassLight, 
+    borderBottomWidth: 1, 
+    borderBottomColor: 'rgba(255, 255, 255, 0.4)',
+    maxHeight: 60, // Limit container height
+  },
+  caseSelectorContent: { 
+    paddingHorizontal: SPACING.m, 
+    paddingVertical: 10, // Fixed vertical padding 
+    gap: SPACING.s,
+    alignItems: 'center', // Center items vertically
+  },
+  caseButton: { 
+    backgroundColor: COLORS.background, 
+    borderRadius: 20, // Pill shape for formal/modern look
+    paddingHorizontal: 16, 
+    paddingVertical: 6, // Reduced height 
+    borderWidth: 1, 
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 32, // Fixed height for "normal" look
+  },
+  caseButtonActive: { 
+    borderColor: COLORS.primary, 
+    backgroundColor: COLORS.primary + '18' 
+  },
+  caseText: { 
+    fontSize: 13, // Slightly larger for readability
+    color: COLORS.textSecondary, 
+    fontWeight: '500', 
+    maxWidth: 160 
+  },
   caseTextActive: { color: COLORS.primary, fontWeight: '700' },
   loadingLang: { fontSize: 12, color: COLORS.textSecondary, paddingHorizontal: SPACING.m, paddingTop: SPACING.s },
   conversationList: { padding: SPACING.m, gap: SPACING.m },

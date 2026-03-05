@@ -12,14 +12,7 @@ import {
 } from '../services/recordingService';
 import * as Speech from 'expo-speech';
 import { translateTextBetween } from '../services/translationService';
-
-// Accuracy levels for testing
-const ACCURACY_LEVELS = {
-  excellent: { emoji: '⭐', color: COLORS.success, label: 'Excellent', minScore: 85 },
-  good: { emoji: '👍', color: '#4CAF50', label: 'Good', minScore: 70 },
-  fair: { emoji: '👌', color: COLORS.accent, label: 'Fair', minScore: 50 },
-  needsWork: { emoji: '📖', color: COLORS.error, label: 'Keep Practicing', minScore: 0 },
-};
+import { useTheme } from '../context/ThemeContext';
 
 const wordTranslationCache = new Map();
 
@@ -32,6 +25,15 @@ export default function VocabularyCard({
   fromLanguage,
   toLanguage 
 }) {
+  const { theme, isDark } = useTheme();
+
+  const ACCURACY_LEVELS = {
+    excellent: { emoji: '⭐', color: theme.success, label: 'Excellent', minScore: 85 },
+    good: { emoji: '👍', color: '#4CAF50', label: 'Good', minScore: 70 },
+    fair: { emoji: '👌', color: theme.accent, label: 'Fair', minScore: 50 },
+    needsWork: { emoji: '📖', color: theme.error, label: 'Keep Practicing', minScore: 0 },
+  };
+
   const [sound, setSound] = useState();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -374,14 +376,14 @@ export default function VocabularyCard({
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       {/* Content Section */}
       <View style={styles.content}>
         <View style={styles.textGroup}>
-          <Text style={styles.originalWord}>{displayWord.original}</Text>
-          <Text style={styles.phonetic}>/{displayWord.pronunciation}/</Text>
-          <Text style={styles.translation}>{displayWord.translated}</Text>
-          {isTranslatingWord && <Text style={styles.translatingHint}>Updating word for selected languages...</Text>}
+          <Text style={[styles.originalWord, { color: theme.text }]}>{displayWord.original}</Text>
+          <Text style={[styles.phonetic, { color: theme.textSecondary }]}>/{displayWord.pronunciation}/</Text>
+          <Text style={[styles.translation, { color: theme.textSecondary }]}>{displayWord.translated}</Text>
+          {isTranslatingWord && <Text style={[styles.translatingHint, { color: theme.textSecondary }]}>Updating word for selected languages...</Text>}
         </View>
 
         {/* Action Buttons */}
@@ -390,17 +392,17 @@ export default function VocabularyCard({
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <TouchableOpacity 
               onPress={() => playPronunciation(false)} 
-              style={[styles.iconButton, isPlaying && styles.iconButtonActive]}
+              style={[styles.iconButton, { backgroundColor: theme.glassLight }, isPlaying && { backgroundColor: theme.primary }]}
               disabled={isPlaying}
               activeOpacity={0.7}
             >
               <AntDesign 
                 name="sound" 
                 size={20} 
-                color={isPlaying ? COLORS.primary : COLORS.textSecondary} 
+                color={isPlaying ? '#FFF' : theme.textSecondary} 
               />
               {isPlaying && (
-                <View style={styles.playingIndicator} />
+                <View style={[styles.playingIndicator, { backgroundColor: theme.accent }]} />
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -408,17 +410,17 @@ export default function VocabularyCard({
           {/* Play Translation Button */}
           <TouchableOpacity 
             onPress={() => playPronunciation(true)} 
-            style={[styles.iconButton, playingTranslation && styles.iconButtonActive]}
+            style={[styles.iconButton, { backgroundColor: theme.glassLight }, playingTranslation && { backgroundColor: theme.primary }]}
             disabled={playingTranslation}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons
               name="translate"
               size={20}
-              color={playingTranslation ? COLORS.accent : COLORS.textSecondary}
+              color={playingTranslation ? '#FFF' : theme.textSecondary}
             />
             {playingTranslation && (
-              <View style={styles.playingIndicator} />
+              <View style={[styles.playingIndicator, { backgroundColor: theme.accent }]} />
             )}
           </TouchableOpacity>
 
@@ -429,17 +431,18 @@ export default function VocabularyCard({
               onPressOut={stopRecording}
               style={[
                 styles.micButton,
-                isRecording && styles.micButtonActive,
+                { backgroundColor: theme.glassLight },
+                isRecording && { backgroundColor: theme.error },
               ]}
               activeOpacity={0.7}
             >
               <Feather 
                 name="mic" 
                 size={20} 
-                color={isRecording ? COLORS.surface : COLORS.error} 
+                color={isRecording ? '#FFF' : theme.error} 
               />
               {isRecording && (
-                <View style={styles.recordingDot} />
+                <View style={[styles.recordingDot, { backgroundColor: '#FFF' }]} />
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -449,14 +452,15 @@ export default function VocabularyCard({
             onPress={onSave}
             style={[
               styles.iconButton,
-              isSaved && styles.saveButtonActive,
+              { backgroundColor: theme.glassLight },
+              isSaved && { backgroundColor: theme.glassMedium, borderColor: theme.success, borderWidth: 1 },
             ]}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons
               name={isSaved ? "bookmark" : "bookmark-outline"}
               size={20}
-              color={isSaved ? COLORS.success : COLORS.textSecondary}
+              color={isSaved ? theme.success : theme.textSecondary}
             />
           </TouchableOpacity>
         </View>
@@ -465,28 +469,34 @@ export default function VocabularyCard({
       {/* Checking Accuracy Indicator */}
       {isCheckingAccuracy && (
         <View style={styles.checkingContainer}>
-          <MaterialCommunityIcons name="loading" size={18} color={COLORS.primary} />
-          <Text style={styles.checkingText}>Analyzing your pronunciation...</Text>
+          <MaterialCommunityIcons name="loading" size={18} color={theme.primary} />
+          <Text style={[styles.checkingText, { color: theme.textSecondary }]}>Analyzing your pronunciation...</Text>
         </View>
       )}
 
       {/* Accuracy Display - PROMINENT */}
       {accuracy && !isCheckingAccuracy && (
-        <View style={[styles.accuracyContainer, { borderLeftColor: accuracy.level.color }]}>
+        <View style={[styles.accuracyContainer, { borderLeftColor: accuracy.level.color, backgroundColor: theme.glassLight }]}>
           <View style={styles.accuracyContent}>
             <Text style={styles.accuracyEmoji}>{accuracy.level.emoji}</Text>
             <View style={styles.accuracyText}>
-              <Text style={styles.accuracyLabel}>{accuracy.level.label}</Text>
+              <Text style={[styles.accuracyLabel, { color: theme.text }]}>{accuracy.level.label}</Text>
               <Text style={[styles.accuracyScore, { color: accuracy.level.color }]}>
                 {accuracy.score}% Accuracy
               </Text>
+
+              {testingMode && (
+                <Text style={{ fontSize: 10, color: theme.textSecondary, marginTop: 4 }}>
+                  {accuracy.feedback}
+                </Text>
+              )}
             </View>
           </View>
           <TouchableOpacity 
             onPress={() => setAccuracy(null)}
             style={styles.accuracyClose}
           >
-            <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
+            <MaterialCommunityIcons name="close" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
       )}

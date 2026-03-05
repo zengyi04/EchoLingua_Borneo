@@ -5,6 +5,7 @@ import { Feather, MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-ico
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 const USERS_DATABASE_KEY = '@echolingua_users_database';
 const COMMUNITY_STORIES_KEY = '@echolingua_stories';
@@ -20,20 +21,24 @@ const LANGUAGES = [
   { id: 'mah', name: 'Mah Meri', status: 'Endangered', speakers: '3,000', iso: 'mhe' }, 
 ];
 
-const QuickAction = ({ title, icon, color, onPress }) => (
-  <TouchableOpacity 
-    style={styles.actionBtn} 
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <View style={[styles.actionIconBox, { backgroundColor: COLORS.glassLight }]}>
-      {React.cloneElement(icon, { color: color })}
-    </View>
-    <Text style={styles.actionLabel} numberOfLines={2}>{title}</Text>
-  </TouchableOpacity>
-);
+const QuickAction = ({ title, icon, color, onPress }) => {
+  const { theme } = useTheme();
+  return (
+    <TouchableOpacity 
+      style={styles.actionBtn} 
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.actionIconBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {React.cloneElement(icon, { color: color })}
+      </View>
+      <Text style={[styles.actionLabel, { color: theme.text }]} numberOfLines={2}>{title}</Text>
+    </TouchableOpacity>
+  );
+};
 
 export default function HomeScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [selectedLang, setSelectedLang] = useState(LANGUAGES[0]);
   const [showLangModal, setShowLangModal] = useState(false); // Language selector hidden by default
   const [activeUsersCount, setActiveUsersCount] = useState(0);
@@ -101,7 +106,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Header Section with Logo */}
@@ -114,13 +119,13 @@ export default function HomeScreen({ navigation }) {
                   resizeMode="contain"
                 />
                 <View>
-                  <Text style={styles.greeting}>Selamat Datang,</Text>
-                  <Text style={styles.appName}>EchoLingua</Text>
+                  <Text style={[styles.greeting, { color: theme.textSecondary }]}>Selamat Datang,</Text>
+                  <Text style={[styles.appName, { color: theme.primary }]}>EchoLingua</Text>
                 </View>
              </View>
              {/* Language Selector moved to Profile/Settings */}
           </View>
-          <Text style={styles.tagline}>Revitalizing Indigenous Languages</Text>
+          <Text style={[styles.tagline, { color: theme.textSecondary }]}>Revitalizing Indigenous Languages</Text>
         </View>
 
         {/* Language Selection Modal */}
@@ -135,19 +140,19 @@ export default function HomeScreen({ navigation }) {
              activeOpacity={1} 
              onPress={() => setShowLangModal(false)}
           >
-             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Select Language</Text>
+             <View style={[styles.modalContent, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Select Language</Text>
                 
                 {/* Data Attribution Badge */}
-                <View style={styles.sourceBadge}>
-                  <Ionicons name="globe-outline" size={14} color={COLORS.textSecondary} />
-                  <Text style={styles.sourceText}>Data verified by Ethnologue & JMM</Text>
+                <View style={[styles.sourceBadge, { backgroundColor: theme.inputBackground }]}>
+                  <Ionicons name="globe-outline" size={14} color={theme.textSecondary} />
+                  <Text style={[styles.sourceText, { color: theme.textSecondary }]}>Data verified by Ethnologue & JMM</Text>
                 </View>
 
                 {LANGUAGES.map(lang => (
                    <TouchableOpacity 
                       key={lang.id} 
-                      style={styles.langOption}
+                      style={[styles.langOption, { borderBottomColor: theme.border }]}
                       onPress={() => {
                          setSelectedLang(lang);
                          setShowLangModal(false);
@@ -156,15 +161,16 @@ export default function HomeScreen({ navigation }) {
                      <View>
                         <Text style={[
                            styles.langOptionText, 
-                           selectedLang.id === lang.id && styles.activeLangText
+                           { color: theme.text },
+                           selectedLang.id === lang.id && [styles.activeLangText, { color: theme.primary }]
                         ]}>{lang.name}</Text>
-                        <Text style={styles.langMeta}>
+                        <Text style={[styles.langMeta, { color: theme.textSecondary }]}>
                            {lang.speakers} speakers • {lang.status}
                         </Text>
                      </View>
                       
                       {selectedLang.id === lang.id && (
-                         <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                         <Ionicons name="checkmark" size={20} color={theme.primary} />
                       )}
                       
                       {/* Endangerment Indicator */}
@@ -178,27 +184,41 @@ export default function HomeScreen({ navigation }) {
         </Modal>
 
         {/* Living Language Stats (New Feature) */}
-        <View style={styles.statsCard}>
-           <Text style={styles.statsTitle}>Living Language Status</Text>
+        <View style={[
+           styles.statsCard, 
+           { 
+             backgroundColor: theme.surface, 
+             borderWidth: 0,
+             elevation: 4,
+             shadowColor: '#000',
+             shadowOffset: { width: 0, height: 2 },
+             shadowOpacity: 0.1,
+             shadowRadius: 8,
+             marginBottom: SPACING.medium // Ensure spacing
+           }
+        ]}>
+           <Text style={[styles.statsTitle, { color: theme.text }]}>Living Language Status</Text>
            <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                 <Text style={styles.statNumber}>1,204</Text>
-                 <Text style={styles.statLabel}>Words Preserved</Text>
+                 <Text style={[styles.statNumber, { color: theme.secondary }]}>1,204</Text>
+                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Words Preserved</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: theme.border, alignSelf: 'center', height: 40 }]} />
               <View style={styles.statItem}>
-                 <Text style={styles.statNumber}>{activeUsersCount}</Text>
-                 <Text style={styles.statLabel}>Active Today</Text>
+                 <Text style={[styles.statNumber, { color: theme.secondary }]}>{activeUsersCount}</Text>
+                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Active Today</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: theme.border, alignSelf: 'center', height: 40 }]} />
               <View style={styles.statItem}>
-                 <Text style={styles.statNumber}>{unreadStoriesCount}</Text>
-                 <Text style={styles.statLabel}>New Community Today</Text>
+                 <Text style={[styles.statNumber, { color: theme.secondary }]}>{unreadStoriesCount}</Text>
+                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>New Community Today</Text>
               </View>
            </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Tools & Discovery</Text>
+        <View style={{ height: SPACING.l }} />
+
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Tools & Discovery</Text>
 
         <View style={styles.grid}>
           {/* Row 1: AI & Discovery (Wow Features) */}
@@ -243,19 +263,19 @@ export default function HomeScreen({ navigation }) {
           <QuickAction 
             title="Learn" 
             icon={<FontAwesome5 name="book-open" size={20} />}
-            color={COLORS.primary}
+            color={theme.primary}
             onPress={() => navigation.navigate('LearnTab')}
           />
           <QuickAction 
             title="Practice" 
             icon={<MaterialIcons name="translate" size={24} />}
-            color={COLORS.secondary}
+            color={theme.secondary}
             onPress={() => navigation.navigate('Vocabulary')}
           />
           <QuickAction 
             title="Quiz" 
             icon={<MaterialIcons name="quiz" size={24} />}
-            color={COLORS.accent}
+            color={theme.accent}
             onPress={() => navigation.navigate('Quiz')}
           />
 
@@ -333,7 +353,7 @@ export default function HomeScreen({ navigation }) {
           <QuickAction 
             title="Record" 
             icon={<MaterialIcons name="mic" size={24} />}
-            color={COLORS.error}
+            color={theme.error}
             onPress={() => navigation.navigate('RecordTab')}
           />
         </View>
@@ -399,10 +419,14 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
   },
   statItem: {
     alignItems: 'center',
     flex: 1,
+    justifyContent: 'flex-start',
+    minHeight: 60,
   },
   statNumber: {
     fontSize: 18,
@@ -412,7 +436,9 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 10,
     color: COLORS.textSecondary,
-    marginTop: 2,
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 4,
   },
   statDivider: {
     width: 1,

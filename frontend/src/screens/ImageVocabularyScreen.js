@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 const MOCK_DETECTED_OBJECTS = [
   {
@@ -36,6 +37,7 @@ const MOCK_DETECTED_OBJECTS = [
 ];
 
 export default function ImageVocabularyScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [uploadedImage, setUploadedImage] = useState(null);
   const [detectedObjects, setDetectedObjects] = useState([]);
@@ -74,17 +76,17 @@ export default function ImageVocabularyScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.surfaceVariant, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
           >
-            <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+            <Ionicons name="chevron-back" size={24} color={theme.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Image to Vocabulary</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>Image to Vocabulary</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
             Upload images to discover indigenous words
           </Text>
         </View>
@@ -93,43 +95,47 @@ export default function ImageVocabularyScreen() {
           {/* Image Upload Area */}
           {!uploadedImage ? (
             <TouchableOpacity
-              style={[styles.uploadArea, isDragging && styles.uploadAreaDragging]}
+              style={[
+                styles.uploadArea,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+                isDragging && { borderColor: theme.primary, backgroundColor: theme.surfaceVariant }
+              ]}
               onPress={handleImageUpload}
               activeOpacity={0.7}
             >
-              <View style={styles.uploadIconContainer}>
-                <Ionicons name="cloud-upload-outline" size={64} color={COLORS.primary} />
+              <View style={[styles.uploadIconContainer, { backgroundColor: theme.surfaceVariant }]}>
+                <Ionicons name="cloud-upload-outline" size={64} color={theme.primary} />
               </View>
-              <Text style={styles.uploadTitle}>Drag & Drop Image Here</Text>
-              <Text style={styles.uploadSubtitle}>or tap to select from device</Text>
-              <View style={styles.supportedFormats}>
-                <Text style={styles.formatText}>Supported: JPG, PNG, WEBP</Text>
+              <Text style={[styles.uploadTitle, { color: theme.text }]}>Drag & Drop Image Here</Text>
+              <Text style={[styles.uploadSubtitle, { color: theme.textSecondary }]}>or tap to select from device</Text>
+              <View style={[styles.supportedFormats, { backgroundColor: theme.surfaceVariant }]}>
+                <Text style={[styles.formatText, { color: theme.textSecondary }]}>Supported: JPG, PNG, WEBP</Text>
               </View>
             </TouchableOpacity>
           ) : (
             <View style={styles.imagePreviewContainer}>
               <View style={styles.imageHeader}>
-                <Text style={styles.imageHeaderTitle}>Uploaded Image</Text>
+                <Text style={[styles.imageHeaderTitle, { color: theme.text }]}>Uploaded Image</Text>
                 <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
-                  <Ionicons name="close-circle" size={24} color={COLORS.error} />
+                  <Ionicons name="close-circle" size={24} color={theme.error || '#EF4444'} />
                 </TouchableOpacity>
               </View>
               
               <View style={styles.imageWrapper}>
                 <Image
                   source={{ uri: uploadedImage }}
-                  style={styles.uploadedImage}
+                  style={[styles.uploadedImage, { borderColor: theme.border, borderWidth: 1 }]}
                   resizeMode="cover"
                 />
                 {isProcessing && (
-                  <View style={styles.processingOverlay}>
-                    <View style={styles.processingCard}>
+                  <View style={[styles.processingOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                    <View style={[styles.processingCard, { backgroundColor: theme.surface }]}>
                       <MaterialCommunityIcons
                         name="robot"
                         size={48}
-                        color={COLORS.primary}
+                        color={theme.primary}
                       />
-                      <Text style={styles.processingText}>Analyzing image...</Text>
+                      <Text style={[styles.processingText, { color: theme.text }]}>Analyzing image...</Text>
                     </View>
                   </View>
                 )}
@@ -141,8 +147,8 @@ export default function ImageVocabularyScreen() {
           {detectedObjects.length > 0 && (
             <View style={styles.detectedSection}>
               <View style={styles.sectionHeader}>
-                <MaterialCommunityIcons name="eye-check" size={24} color={COLORS.success} />
-                <Text style={styles.sectionTitle}>
+                <MaterialCommunityIcons name="eye-check" size={24} color={theme.success || '#10B981'} />
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
                   Detected Objects ({detectedObjects.length})
                 </Text>
               </View>
@@ -157,20 +163,22 @@ export default function ImageVocabularyScreen() {
                     key={obj.id}
                     style={[
                       styles.objectChip,
-                      selectedObject?.id === obj.id && styles.objectChipSelected,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                      selectedObject?.id === obj.id && { backgroundColor: theme.primary, borderColor: theme.primary },
                     ]}
                     onPress={() => setSelectedObject(obj)}
                   >
                     <Text
                       style={[
                         styles.objectChipText,
-                        selectedObject?.id === obj.id && styles.objectChipTextSelected,
+                        { color: theme.text },
+                        selectedObject?.id === obj.id && { color: theme.surface },
                       ]}
                     >
                       {obj.name}
                     </Text>
-                    <View style={styles.confidenceBadge}>
-                      <Text style={styles.confidenceText}>{obj.confidence}%</Text>
+                    <View style={[styles.confidenceBadge, { backgroundColor: theme.surfaceVariant }]}>
+                      <Text style={[styles.confidenceText, { color: theme.textSecondary }]}>{obj.confidence}%</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -180,57 +188,57 @@ export default function ImageVocabularyScreen() {
 
           {/* Selected Object Details */}
           {selectedObject && (
-            <View style={styles.vocabularyCard}>
-              <View style={styles.cardHeader}>
+            <View style={[styles.vocabularyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
                 <View style={styles.languageLabel}>
-                  <MaterialCommunityIcons name="earth" size={20} color={COLORS.primary} />
-                  <Text style={styles.languageLabelText}>Indigenous Borneo</Text>
+                  <MaterialCommunityIcons name="earth" size={20} color={theme.primary} />
+                  <Text style={[styles.languageLabelText, { color: theme.textSecondary }]}>Indigenous Borneo</Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.playButton}
+                  style={[styles.playButton, { backgroundColor: theme.surfaceVariant }]}
                   onPress={() => handlePlayAudio(selectedObject.id)}
                 >
                   <Ionicons
                     name={playingAudio === selectedObject.id ? "pause-circle" : "volume-high"}
                     size={32}
-                    color={COLORS.primary}
+                    color={theme.primary}
                   />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.wordContainer}>
-                <Text style={styles.indigenousWord}>{selectedObject.indigenous}</Text>
-                <View style={styles.pronunciationContainer}>
-                  <Ionicons name="mic-outline" size={16} color={COLORS.secondary} />
-                  <Text style={styles.pronunciation}>/{selectedObject.pronunciation}/</Text>
+                <Text style={[styles.indigenousWord, { color: theme.primary }]}>{selectedObject.indigenous}</Text>
+                <View style={[styles.pronunciationContainer, { backgroundColor: theme.surfaceVariant }]}>
+                  <Ionicons name="mic-outline" size={16} color={theme.secondary} />
+                  <Text style={[styles.pronunciation, { color: theme.textSecondary }]}>/{selectedObject.pronunciation}/</Text>
                 </View>
               </View>
 
               <View style={styles.translationContainer}>
                 <View style={styles.translationHeader}>
-                  <MaterialCommunityIcons name="translate" size={18} color={COLORS.textSecondary} />
-                  <Text style={styles.translationLabel}>English Translation</Text>
+                  <MaterialCommunityIcons name="translate" size={18} color={theme.textSecondary} />
+                  <Text style={[styles.translationLabel, { color: theme.textSecondary }]}>English Translation</Text>
                 </View>
-                <Text style={styles.translationText}>{selectedObject.translation}</Text>
+                <Text style={[styles.translationText, { color: theme.text }]}>{selectedObject.translation}</Text>
               </View>
 
               <View style={styles.descriptionContainer}>
-                <Text style={styles.descriptionTitle}>About this word:</Text>
-                <Text style={styles.descriptionText}>{selectedObject.description}</Text>
+                <Text style={[styles.descriptionTitle, { color: theme.text }]}>About this word:</Text>
+                <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{selectedObject.description}</Text>
               </View>
 
               <View style={styles.actionButtons}>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="bookmark-outline" size={20} color={COLORS.primary} />
-                  <Text style={styles.actionButtonText}>Save</Text>
+                  <Ionicons name="bookmark-outline" size={20} color={theme.primary} />
+                  <Text style={[styles.actionButtonText, { color: theme.text }]}>Save</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="share-social-outline" size={20} color={COLORS.primary} />
-                  <Text style={styles.actionButtonText}>Share</Text>
+                  <Ionicons name="share-social-outline" size={20} color={theme.primary} />
+                  <Text style={[styles.actionButtonText, { color: theme.text }]}>Share</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <MaterialCommunityIcons name="cards" size={20} color={COLORS.primary} />
-                  <Text style={styles.actionButtonText}>Add to Deck</Text>
+                  <MaterialCommunityIcons name="cards" size={20} color={theme.primary} />
+                  <Text style={[styles.actionButtonText, { color: theme.text }]}>Add to Deck</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -238,33 +246,33 @@ export default function ImageVocabularyScreen() {
 
           {/* Beginner Tips */}
           {!uploadedImage && (
-            <View style={styles.tipsCard}>
+            <View style={[styles.tipsCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
               <View style={styles.tipsHeader}>
-                <Ionicons name="bulb" size={24} color={COLORS.accent} />
-                <Text style={styles.tipsTitle}>Tips for Beginners</Text>
+                <Ionicons name="bulb" size={24} color={theme.accent} />
+                <Text style={[styles.tipsTitle, { color: theme.text }]}>Tips for Beginners</Text>
               </View>
               <View style={styles.tipsList}>
                 <View style={styles.tipItem}>
-                  <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>
+                  <View style={[styles.tipBullet, { backgroundColor: theme.accent }]} />
+                  <Text style={[styles.tipText, { color: theme.textSecondary }]}>
                     Take clear photos of objects in good lighting
                   </Text>
                 </View>
                 <View style={styles.tipItem}>
-                  <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>
+                  <View style={[styles.tipBullet, { backgroundColor: theme.accent }]} />
+                  <Text style={[styles.tipText, { color: theme.textSecondary }]}>
                     Start with common household items or food
                   </Text>
                 </View>
                 <View style={styles.tipItem}>
-                  <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>
+                  <View style={[styles.tipBullet, { backgroundColor: theme.accent }]} />
+                  <Text style={[styles.tipText, { color: theme.textSecondary }]}>
                     The AI identifies objects and teaches indigenous words
                   </Text>
                 </View>
                 <View style={styles.tipItem}>
-                  <View style={styles.tipBullet} />
-                  <Text style={styles.tipText}>
+                  <View style={[styles.tipBullet, { backgroundColor: theme.accent }]} />
+                  <Text style={[styles.tipText, { color: theme.textSecondary }]}>
                     Practice pronunciation by listening to audio
                   </Text>
                 </View>
@@ -275,34 +283,34 @@ export default function ImageVocabularyScreen() {
           {/* Example Images */}
           {!uploadedImage && (
             <View style={styles.examplesSection}>
-              <Text style={styles.examplesTitle}>Try these examples:</Text>
+              <Text style={[styles.examplesTitle, { color: theme.text }]}>Try these examples:</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <TouchableOpacity style={styles.exampleCard} onPress={handleImageUpload}>
-                  <View style={styles.exampleImage}>
-                    <MaterialCommunityIcons name="fruit-pineapple" size={48} color={COLORS.accent} />
+                <TouchableOpacity style={[styles.exampleCard, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={handleImageUpload}>
+                  <View style={[styles.exampleImage, { backgroundColor: theme.surfaceVariant }]}>
+                    <MaterialCommunityIcons name="fruit-pineapple" size={48} color={theme.accent} />
                   </View>
-                  <Text style={styles.exampleText}>Fruits</Text>
+                  <Text style={[styles.exampleText, { color: theme.text }]}>Fruits</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.exampleCard} onPress={handleImageUpload}>
-                  <View style={styles.exampleImage}>
-                    <MaterialCommunityIcons name="food-variant" size={48} color={COLORS.secondary} />
+                <TouchableOpacity style={[styles.exampleCard, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={handleImageUpload}>
+                  <View style={[styles.exampleImage, { backgroundColor: theme.surfaceVariant }]}>
+                    <MaterialCommunityIcons name="food-variant" size={48} color={theme.secondary} />
                   </View>
-                  <Text style={styles.exampleText}>Foods</Text>
+                  <Text style={[styles.exampleText, { color: theme.text }]}>Foods</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.exampleCard} onPress={handleImageUpload}>
-                  <View style={styles.exampleImage}>
-                    <MaterialCommunityIcons name="tree" size={48} color={COLORS.success} />
+                <TouchableOpacity style={[styles.exampleCard, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={handleImageUpload}>
+                  <View style={[styles.exampleImage, { backgroundColor: theme.surfaceVariant }]}>
+                    <MaterialCommunityIcons name="tree" size={48} color={theme.success || '#10B981'} />
                   </View>
-                  <Text style={styles.exampleText}>Nature</Text>
+                  <Text style={[styles.exampleText, { color: theme.text }]}>Nature</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.exampleCard} onPress={handleImageUpload}>
-                  <View style={styles.exampleImage}>
-                    <MaterialCommunityIcons name="home" size={48} color={COLORS.primary} />
+                <TouchableOpacity style={[styles.exampleCard, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={handleImageUpload}>
+                  <View style={[styles.exampleImage, { backgroundColor: theme.surfaceVariant }]}>
+                    <MaterialCommunityIcons name="home" size={48} color={theme.primary} />
                   </View>
-                  <Text style={styles.exampleText}>Home</Text>
+                  <Text style={[styles.exampleText, { color: theme.text }]}>Home</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>

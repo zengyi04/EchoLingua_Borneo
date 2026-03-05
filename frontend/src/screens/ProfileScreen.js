@@ -7,6 +7,7 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-ico
 import { getUserProfile, getAverageScoreByDifficulty } from '../services/scoringService';
 import { WORLD_LANGUAGES, getBorneoLanguages, getLanguagesByRegion } from '../constants/languages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const USERS_DB_KEY = '@echolingua_users_database';
@@ -25,6 +26,7 @@ const LANGUAGE_GROUPS = [
 ];
 
 export default function ProfileScreen() {
+  const { theme, updateTheme, themeMode } = useTheme();
   const navigation = useNavigation();
   const [userProfile, setUserProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -104,34 +106,34 @@ export default function ProfileScreen() {
   const toggle = (key) => setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.topBar, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.topBarBackButton}
           onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={24} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Profile</Text>
+        <Text style={[styles.topBarTitle, { color: theme.text }]}>Profile</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
+        <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.avatarContainer, { backgroundColor: theme.primary }]}>
+            <Text style={[styles.avatarText, { color: theme.surface }]}>
               {currentUser?.fullName 
                 ? currentUser.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                 : 'JD'}
             </Text>
           </View>
-          <Text style={styles.userName}>{currentUser?.fullName || 'User Profile'}</Text>
+          <Text style={[styles.userName, { color: theme.text }]}>{currentUser?.fullName || 'User Profile'}</Text>
           {userProfile && (
             <>
-              <Text style={styles.userLevel}>{userProfile.title}</Text>
-              <Text style={styles.levelType}>{userProfile.badge} {userProfile.levelType}</Text>
-              <View style={styles.pointsContainer}>
+              <Text style={[styles.userLevel, { color: theme.textSecondary }]}>{userProfile.title}</Text>
+              <Text style={[styles.levelType, { color: theme.primary }]}>{userProfile.badge} {userProfile.levelType}</Text>
+              <View style={[styles.pointsContainer, { backgroundColor: theme.surfaceVariant }]}>
                 <Ionicons name="trophy" size={20} color="#FFD700" />
-                <Text style={styles.pointsText}>{userProfile.totalPoints} Points</Text>
+                <Text style={[styles.pointsText, { color: theme.text }]}>{userProfile.totalPoints} Points</Text>
               </View>
             </>
           )}
@@ -139,44 +141,47 @@ export default function ProfileScreen() {
 
         {userProfile && (
           <TouchableOpacity 
-            style={styles.statsButton} 
+            style={[styles.statsButton, { backgroundColor: theme.surface, borderColor: theme.border }]} 
             onPress={() => setShowStats(true)}
           >
             <View style={styles.statsContent}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{userProfile.quizzesCompleted}</Text>
-                <Text style={styles.statLabel}>Quizzes</Text>
+                <Text style={[styles.statNumber, { color: theme.primary }]}>{userProfile.quizzesCompleted}</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Quizzes</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{userProfile.scenariosCompleted}</Text>
-                <Text style={styles.statLabel}>Scenarios</Text>
+                <Text style={[styles.statNumber, { color: theme.primary }]}>{userProfile.scenariosCompleted}</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Scenarios</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>Lvl {userProfile.level}</Text>
-                <Text style={styles.statLabel}>Current</Text>
+                <Text style={[styles.statNumber, { color: theme.primary }]}>Lvl {userProfile.level}</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Current</Text>
               </View>
             </View>
           </TouchableOpacity>
         )}
 
-        <Text style={styles.sectionTitle}>Settings</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Settings</Text>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => setShowLangOptions((prev) => !prev)}>
-          <Ionicons name="globe-outline" size={24} color={COLORS.text} />
+        <TouchableOpacity 
+          style={[styles.menuItem, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+          onPress={() => setShowLangOptions((prev) => !prev)}
+        >
+          <Ionicons name="globe-outline" size={24} color={theme.text} />
           <View style={styles.menuContent}>
-            <Text style={styles.menuText}>Language Preference</Text>
-            <Text style={styles.menuSubtext}>{currentLang}</Text>
+            <Text style={[styles.menuText, { color: theme.text }]}>Language Preference</Text>
+            <Text style={[styles.menuSubtext, { color: theme.textSecondary }]}>{currentLang}</Text>
           </View>
-          <Ionicons name={showLangOptions ? 'chevron-down' : 'chevron-forward'} size={20} color={COLORS.textSecondary} />
+          <Ionicons name={showLangOptions ? 'chevron-down' : 'chevron-forward'} size={20} color={theme.textSecondary} />
         </TouchableOpacity>
 
         {showLangOptions && (
-          <ScrollView style={styles.langDropdown} nestedScrollEnabled={true}>
+          <ScrollView style={[styles.langDropdown, { backgroundColor: theme.surface }]} nestedScrollEnabled={true}>
             {LANGUAGE_GROUPS.map((group, groupIndex) => (
               <View key={groupIndex} style={styles.langGroup}>
-                <Text style={styles.langGroupTitle}>{group.title}</Text>
+                <Text style={[styles.langGroupTitle, { backgroundColor: theme.surfaceVariant, color: theme.primary }]}>{group.title}</Text>
                 {group.languages.map((lang) => (
                   <TouchableOpacity
                     key={lang.id}
@@ -187,9 +192,9 @@ export default function ProfileScreen() {
                     }}
                   >
                     <Text style={styles.langFlag}>{lang.flag}</Text>
-                    <Text style={styles.langOptionText}>{lang.label}</Text>
-                    {lang.indigenous && <Text style={styles.indigenousBadge}>Indigenous</Text>}
-                    {currentLang === lang.label && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+                    <Text style={[styles.langOptionText, { color: theme.text }]}>{lang.label}</Text>
+                    {lang.indigenous && <Text style={[styles.indigenousBadge, { backgroundColor: theme.surfaceVariant, color: theme.accent }]}>Indigenous</Text>}
+                    {currentLang === lang.label && <Ionicons name="checkmark-circle" size={20} color={theme.primary} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -197,66 +202,75 @@ export default function ProfileScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => setShowSettings(true)}>
-          <Ionicons name="settings-outline" size={24} color={COLORS.text} />
-          <Text style={styles.menuListItem}>General Settings</Text>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+        <TouchableOpacity 
+          style={[styles.menuItem, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+          onPress={() => setShowSettings(true)}
+        >
+          <Ionicons name="settings-outline" size={24} color={theme.text} />
+          <Text style={[styles.menuListItem, { color: theme.text }]}>General Settings</Text>
+          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => setShowHelp(true)}>
-          <Ionicons name="help-circle-outline" size={24} color={COLORS.text} />
-          <Text style={styles.menuListItem}>Help & Support</Text>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+        <TouchableOpacity 
+          style={[styles.menuItem, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+          onPress={() => setShowHelp(true)}
+        >
+          <Ionicons name="help-circle-outline" size={24} color={theme.text} />
+          <Text style={[styles.menuListItem, { color: theme.text }]}>Help & Support</Text>
+          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.menuItem, styles.logoutButton]} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color={COLORS.error} />
-          <Text style={[styles.menuListItem, styles.logoutText]}>Logout</Text>
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: theme.error, shadowColor: theme.error, elevation: 4 }]} 
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#FFF" />
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
         {/* User Signup Info Section */}
         {currentUser && (
           <View style={styles.userInfoSection}>
-            <Text style={styles.userInfoSectionTitle}>Account Information</Text>
-            <View style={styles.userInfoCard}>
+            <Text style={[styles.userInfoSectionTitle, { color: theme.text }]}>Account Information</Text>
+            <View style={[styles.userInfoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
-                  <Ionicons name="mail-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.infoLabel}>Email</Text>
+                  <Ionicons name="mail-outline" size={18} color={theme.primary} />
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Email</Text>
                 </View>
-                <Text style={styles.infoValue}>{currentUser.email}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{currentUser.email}</Text>
               </View>
-              <View style={styles.infoDivider} />
+              <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
-                  <Ionicons name="people-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.infoLabel}>Community</Text>
+                  <Ionicons name="people-outline" size={18} color={theme.primary} />
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Community</Text>
                 </View>
-                <Text style={styles.infoValue}>{currentUser.community || 'Not set'}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{currentUser.community || 'Not set'}</Text>
               </View>
-              <View style={styles.infoDivider} />
+              <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
-                  <Ionicons name="language" size={18} color={COLORS.primary} />
-                  <Text style={styles.infoLabel}>Languages</Text>
+                  <Ionicons name="language" size={18} color={theme.primary} />
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Languages</Text>
                 </View>
-                <Text style={styles.infoValue}>{Array.isArray(currentUser.languages) && currentUser.languages.length > 0 ? currentUser.languages.join(', ') : 'Not set'}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{Array.isArray(currentUser.languages) && currentUser.languages.length > 0 ? currentUser.languages.join(', ') : 'Not set'}</Text>
               </View>
-              <View style={styles.infoDivider} />
+              <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
-                  <Ionicons name="cake-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.infoLabel}>Age</Text>
+                  <Ionicons name="cake-outline" size={18} color={theme.primary} />
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Age</Text>
                 </View>
-                <Text style={styles.infoValue}>{currentUser.age || 'Not set'}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{currentUser.age || 'Not set'}</Text>
               </View>
-              <View style={styles.infoDivider} />
+              <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
-                  <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.infoLabel}>Joined</Text>
+                  <Ionicons name="calendar-outline" size={18} color={theme.primary} />
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Joined</Text>
                 </View>
-                <Text style={styles.infoValue}>
+                <Text style={[styles.infoValue, { color: theme.text }]}>
                   {currentUser.joinedAt 
                     ? new Date(currentUser.joinedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
                     : 'Not set'}
@@ -269,67 +283,67 @@ export default function ProfileScreen() {
 
       <Modal visible={showStats} animationType="slide" transparent onRequestClose={() => setShowStats(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Statistics</Text>
-              <TouchableOpacity onPress={() => setShowStats(false)}><Ionicons name="close" size={28} color={COLORS.text} /></TouchableOpacity>
+          <View style={[styles.modalContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={[styles.modalHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Statistics</Text>
+              <TouchableOpacity onPress={() => setShowStats(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
               {userProfile && (
                 <>
                   <View style={styles.statSection}>
-                    <Text style={styles.statSectionTitle}>Quiz Performance by Difficulty</Text>
+                    <Text style={[styles.statSectionTitle, { color: theme.text }]}>Quiz Performance by Difficulty</Text>
                     <View style={styles.difficultyStats}>
                       <View style={styles.diffStat}>
-                        <Text style={styles.diffLabel}>Easy</Text>
-                        <View style={[styles.diffScore, { borderTopColor: '#4CAF50' }]}>
-                          <Text style={styles.diffValue}>{easyAvg}%</Text>
+                        <Text style={[styles.diffLabel, { color: theme.text }]}>Easy</Text>
+                        <View style={[styles.diffScore, { borderTopColor: '#4CAF50', backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                          <Text style={[styles.diffValue, { color: theme.text }]}>{easyAvg}%</Text>
                         </View>
                       </View>
                       <View style={styles.diffStat}>
-                        <Text style={styles.diffLabel}>Medium</Text>
-                        <View style={[styles.diffScore, { borderTopColor: '#FF9800' }]}>
-                          <Text style={styles.diffValue}>{mediumAvg}%</Text>
+                        <Text style={[styles.diffLabel, { color: theme.text }]}>Medium</Text>
+                        <View style={[styles.diffScore, { borderTopColor: '#FF9800', backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                          <Text style={[styles.diffValue, { color: theme.text }]}>{mediumAvg}%</Text>
                         </View>
                       </View>
                       <View style={styles.diffStat}>
-                        <Text style={styles.diffLabel}>Hard</Text>
-                        <View style={[styles.diffScore, { borderTopColor: '#E53935' }]}>
-                          <Text style={styles.diffValue}>{hardAvg}%</Text>
+                        <Text style={[styles.diffLabel, { color: theme.text }]}>Hard</Text>
+                        <View style={[styles.diffScore, { borderTopColor: '#E53935', backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                          <Text style={[styles.diffValue, { color: theme.text }]}>{hardAvg}%</Text>
                         </View>
                       </View>
                     </View>
                   </View>
 
                   <View style={styles.statSection}>
-                    <Text style={styles.statSectionTitle}>Level Progression</Text>
-                    <View style={styles.levelInfo}>
-                      <View style={styles.levelRow}>
-                        <Text style={styles.levelRowLabel}>Current Level:</Text>
-                        <Text style={styles.levelRowValue}>{userProfile.level}</Text>
+                    <Text style={[styles.statSectionTitle, { color: theme.text }]}>Level Progression</Text>
+                    <View style={[styles.levelInfo, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                      <View style={[styles.levelRow, { borderBottomColor: theme.border }]}>
+                        <Text style={[styles.levelRowLabel, { color: theme.textSecondary }]}>Current Level:</Text>
+                        <Text style={[styles.levelRowValue, { color: theme.primary }]}>{userProfile.level}</Text>
                       </View>
-                      <View style={styles.levelRow}>
-                        <Text style={styles.levelRowLabel}>Type:</Text>
-                        <Text style={styles.levelRowValue}>{userProfile.levelType}</Text>
+                      <View style={[styles.levelRow, { borderBottomColor: theme.border }]}>
+                        <Text style={[styles.levelRowLabel, { color: theme.textSecondary }]}>Type:</Text>
+                        <Text style={[styles.levelRowValue, { color: theme.primary }]}>{userProfile.levelType}</Text>
                       </View>
-                      <View style={styles.levelRow}>
-                        <Text style={styles.levelRowLabel}>Total Points:</Text>
-                        <Text style={styles.levelRowValue}>{userProfile.totalPoints}</Text>
+                      <View style={[styles.levelRow, { borderBottomColor: theme.border }]}>
+                        <Text style={[styles.levelRowLabel, { color: theme.textSecondary }]}>Total Points:</Text>
+                        <Text style={[styles.levelRowValue, { color: theme.primary }]}>{userProfile.totalPoints}</Text>
                       </View>
-                      <View style={styles.levelRow}>
-                        <Text style={styles.levelRowLabel}>Quizzes Completed:</Text>
-                        <Text style={styles.levelRowValue}>{userProfile.quizzesCompleted}</Text>
+                      <View style={[styles.levelRow, { borderBottomColor: theme.border }]}>
+                        <Text style={[styles.levelRowLabel, { color: theme.textSecondary }]}>Quizzes Completed:</Text>
+                        <Text style={[styles.levelRowValue, { color: theme.primary }]}>{userProfile.quizzesCompleted}</Text>
                       </View>
-                      <View style={styles.levelRow}>
-                        <Text style={styles.levelRowLabel}>Scenarios Practiced:</Text>
-                        <Text style={styles.levelRowValue}>{userProfile.scenariosCompleted}</Text>
+                      <View style={[styles.levelRow, { borderBottomColor: theme.border }]}>
+                        <Text style={[styles.levelRowLabel, { color: theme.textSecondary }]}>Scenarios Practiced:</Text>
+                        <Text style={[styles.levelRowValue, { color: theme.primary }]}>{userProfile.scenariosCompleted}</Text>
                       </View>
                     </View>
                   </View>
 
                   {userProfile.levelMap && (
                     <View style={styles.statSection}>
-                      <Text style={styles.statSectionTitle}>Quiz Achievements</Text>
+                      <Text style={[styles.statSectionTitle, { color: theme.text }]}>Quiz Achievements</Text>
                       <View style={styles.achievementsList}>
                         {['easy_1', 'easy_2', 'medium_1', 'medium_2', 'hard_1', 'hard_2'].map((key) => {
                           const [difficulty, quizNum] = key.split('_');
@@ -354,18 +368,18 @@ export default function ProfileScreen() {
                           };
                           
                           return (
-                            <View key={key} style={[styles.achievementItem, passed && styles.achievementPassed]}>
+                            <View key={key} style={[styles.achievementItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }, passed && { backgroundColor: theme.card, borderColor: theme.success }]}>
                               <Text style={styles.achievementEmoji}>{emojis[key]}</Text>
                               <View style={styles.achievementInfo}>
-                                <Text style={[styles.achievementTitle, passed && styles.achievementTitlePassed]}>
+                                <Text style={[styles.achievementTitle, { color: theme.textSecondary }, passed && { color: theme.text }]}>
                                   {levelNames[key]}
                                 </Text>
-                                <Text style={styles.achievementDetail}>
+                                <Text style={[styles.achievementDetail, { color: theme.textSecondary }]}>
                                   {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Quiz {quizNum}
                                   {data ? ` • ${avgScore}% avg` : ' • Not attempted'}
                                 </Text>
                               </View>
-                              {passed && <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />}
+                              {passed && <Ionicons name="checkmark-circle" size={24} color={theme.success} />}
                             </View>
                           );
                         })}
@@ -384,20 +398,51 @@ export default function ProfileScreen() {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>General Settings</Text>
-              <TouchableOpacity onPress={() => setShowSettings(false)}><Ionicons name="close" size={28} color={COLORS.text} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowSettings(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
             </View>
-            <View style={styles.modalContent}>
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleLeft}><Ionicons name="alarm" size={20} color={COLORS.primary} /><Text style={styles.toggleText}>Daily Reminders</Text></View>
-                <Switch value={settings.dailyReminders} onValueChange={() => toggle('dailyReminders')} />
+            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+              <View style={[styles.toggleRow, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
+                <View style={styles.toggleLeft}><Ionicons name="alarm" size={20} color={theme.primary} /><Text style={[styles.toggleText, { color: theme.text }]}>Daily Reminders</Text></View>
+                <Switch value={settings.dailyReminders} onValueChange={() => toggle('dailyReminders')} trackColor={{ false: '#767577', true: theme.primary }} thumbColor={settings.dailyReminders ? '#fff' : '#f4f3f4'} />
               </View>
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleLeft}><Ionicons name="trophy" size={20} color={COLORS.accent} /><Text style={styles.toggleText}>Achievement Notifications</Text></View>
-                <Switch value={settings.achievements} onValueChange={() => toggle('achievements')} />
+              <View style={[styles.toggleRow, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
+                <View style={styles.toggleLeft}><Ionicons name="trophy" size={20} color={theme.accent} /><Text style={[styles.toggleText, { color: theme.text }]}>Achievement Notifications</Text></View>
+                <Switch value={settings.achievements} onValueChange={() => toggle('achievements')} trackColor={{ false: '#767577', true: theme.primary }} thumbColor={settings.achievements ? '#fff' : '#f4f3f4'} />
               </View>
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleLeft}><Ionicons name="volume-high" size={20} color={COLORS.secondary} /><Text style={styles.toggleText}>Auto-play Audio</Text></View>
-                <Switch value={settings.autoplayAudio} onValueChange={() => toggle('autoplayAudio')} />
+              <View style={[styles.toggleRow, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
+                <View style={styles.toggleLeft}><Ionicons name="volume-high" size={20} color={theme.secondary} /><Text style={[styles.toggleText, { color: theme.text }]}>Auto-play Audio</Text></View>
+                <Switch value={settings.autoplayAudio} onValueChange={() => toggle('autoplayAudio')} trackColor={{ false: '#767577', true: theme.primary }} thumbColor={settings.autoplayAudio ? '#fff' : '#f4f3f4'} />
+              </View>
+
+              <View style={{ marginTop: SPACING.m, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: SPACING.m }}>
+                <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: SPACING.s, color: theme.text }]}>Appearance</Text>
+                <View style={{ flexDirection: 'row', gap: SPACING.s }}>
+                  {['light', 'dark', 'system'].map((mode) => (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => updateTheme(mode)}
+                      style={{
+                        flex: 1,
+                        padding: SPACING.s,
+                        borderRadius: SPACING.s,
+                        backgroundColor: themeMode === mode ? theme.primary : theme.glassMedium,
+                        alignItems: 'center',
+                        borderColor: theme.border,
+                        borderWidth: 1,
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Ionicons 
+                        name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'settings-outline'} 
+                        size={20} 
+                        color={themeMode === mode ? '#FFF' : theme.text} 
+                      />
+                      <Text style={{ marginTop: 4, color: themeMode === mode ? '#FFF' : theme.text, fontSize: 12, textTransform: 'capitalize', fontWeight: '600' }}>
+                        {mode}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
@@ -406,27 +451,27 @@ export default function ProfileScreen() {
 
       <Modal visible={showHelp} animationType="slide" transparent onRequestClose={() => setShowHelp(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Help & Support</Text>
-              <TouchableOpacity onPress={() => setShowHelp(false)}><Ionicons name="close" size={28} color={COLORS.text} /></TouchableOpacity>
+          <View style={[styles.modalContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={[styles.modalHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Help & Support</Text>
+              <TouchableOpacity onPress={() => setShowHelp(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
-              <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL('tel:0169515429')}>
-                <Ionicons name="call" size={20} color={COLORS.secondary} />
-                <View style={styles.contactTextWrap}><Text style={styles.contactLabel}>Phone</Text><Text style={styles.contactValue}>0169515429</Text></View>
+              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('tel:0169515429')}>
+                <Ionicons name="call" size={20} color={theme.secondary} />
+                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>Phone</Text><Text style={[styles.contactValue, { color: theme.text }]}>0169515429</Text></View>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL('https://wa.me/60169515429')}>
+              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('https://wa.me/60169515429')}>
                 <FontAwesome5 name="whatsapp" size={20} color="#25D366" />
-                <View style={styles.contactTextWrap}><Text style={styles.contactLabel}>WhatsApp</Text><Text style={styles.contactValue}>0169515429</Text></View>
+                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>WhatsApp</Text><Text style={[styles.contactValue, { color: theme.text }]}>0169515429</Text></View>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL('mailto:zengyiham@gmail.com')}>
-                <Ionicons name="mail" size={20} color={COLORS.accent} />
-                <View style={styles.contactTextWrap}><Text style={styles.contactLabel}>Email</Text><Text style={styles.contactValue}>zengyiham@gmail.com</Text></View>
+              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('mailto:zengyiham@gmail.com')}>
+                <Ionicons name="mail" size={20} color={theme.accent} />
+                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>Email</Text><Text style={[styles.contactValue, { color: theme.text }]}>zengyiham@gmail.com</Text></View>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.reportButton}
+                style={[styles.reportButton, { backgroundColor: theme.error }]}
                 onPress={() =>
                   Alert.alert('Report a Bug', 'Choose channel', [
                     { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/60169515429?text=Bug%20Report%20for%20EchoLingua%3A%20') },
@@ -435,12 +480,12 @@ export default function ProfileScreen() {
                   ])
                 }
               >
-                <Ionicons name="bug" size={20} color={COLORS.surface} />
-                <Text style={styles.reportButtonText}>Report a Bug</Text>
+                <Ionicons name="bug" size={20} color={theme.surface} />
+                <Text style={[styles.reportButtonText, { color: theme.surface }]}>Report a Bug</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.reportButton, { backgroundColor: COLORS.accent }]}
+                style={[styles.reportButton, { backgroundColor: theme.accent }]}
                 onPress={() =>
                   Alert.alert('Suggest Improvement', 'Choose channel', [
                     { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/60169515429?text=Improvement%20Suggestion%20for%20EchoLingua%3A%20') },
@@ -449,8 +494,8 @@ export default function ProfileScreen() {
                   ])
                 }
               >
-                <Ionicons name="language" size={20} color={COLORS.surface} />
-                <Text style={styles.reportButtonText}>Suggest Improvements</Text>
+                <Ionicons name="language" size={20} color={theme.surface} />
+                <Text style={[styles.reportButtonText, { color: theme.surface }]}>Suggest Improvements</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -501,12 +546,20 @@ const styles = StyleSheet.create({
   menuSubtext: { fontSize: 12, color: COLORS.textSecondary },
   menuListItem: { flex: 1, marginLeft: SPACING.s, fontSize: 15, fontWeight: '700', color: COLORS.text },
   logoutButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: COLORS.error,
-    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    borderRadius: SPACING.l,
+    marginTop: SPACING.m,
+    gap: SPACING.s,
+    ...SHADOWS.medium,
   },
   logoutText: {
-    color: COLORS.error,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   langDropdown: { backgroundColor: COLORS.surface, borderRadius: SPACING.m, padding: SPACING.s, marginBottom: SPACING.s, maxHeight: 400 },
   langGroup: { marginBottom: SPACING.m },

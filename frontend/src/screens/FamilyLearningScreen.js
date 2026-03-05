@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const FAMILY_ACCOUNTS_KEY = 'familyAccounts';
 const ACTIVE_ACCOUNT_KEY = 'activeAccount';
@@ -28,6 +29,8 @@ export default function FamilyLearningScreen({ navigation }) {
 
   const AVATARS = ['👤', '👦', '👧', '👨', '👩', '👴', '👵', '🧒', '🧔', '👨‍🦱'];
   const ROLES = ['Parent', 'Child', 'Grandparent', 'Teen'];
+
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadAccounts();
@@ -202,7 +205,14 @@ export default function FamilyLearningScreen({ navigation }) {
     const isActive = activeAccount?.id === account.id;
 
     return (
-      <View key={account.id} style={[styles.accountCard, isActive && styles.accountCardActive]}>
+      <View 
+        key={account.id} 
+        style={[
+          styles.accountCard, 
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          isActive && [styles.accountCardActive, { borderColor: theme.primary }]
+        ]}
+      >
         <TouchableOpacity
           style={styles.accountCardContent}
           onPress={() => handleSwitchAccount(account)}
@@ -210,30 +220,30 @@ export default function FamilyLearningScreen({ navigation }) {
         >
           <Text style={styles.accountAvatar}>{account.avatar}</Text>
           <View style={styles.accountInfo}>
-            <Text style={styles.accountName}>{account.name}</Text>
-            <Text style={styles.accountRole}>{account.role}</Text>
-            {account.age && <Text style={styles.accountAge}>Age: {account.age}</Text>}
+            <Text style={[styles.accountName, { color: theme.text }]}>{account.name}</Text>
+            <Text style={[styles.accountRole, { color: theme.textSecondary }]}>{account.role}</Text>
+            {account.age && <Text style={[styles.accountAge, { color: theme.textSecondary }]}>Age: {account.age}</Text>}
           </View>
           {isActive && (
             <View style={styles.activeBadge}>
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+              <Ionicons name="checkmark-circle" size={24} color={theme.success} />
             </View>
           )}
         </TouchableOpacity>
 
         {/* Progress Stats */}
-        <View style={styles.progressSection}>
+        <View style={[styles.progressSection, { borderTopColor: theme.border }]}>
           <View style={styles.statItem}>
-            <Ionicons name="book" size={16} color={COLORS.primary} />
-            <Text style={styles.statText}>{account.progress.wordsLearned} words</Text>
+            <Ionicons name="book" size={16} color={theme.primary} />
+            <Text style={[styles.statText, { color: theme.textSecondary }]}>{account.progress.wordsLearned} words</Text>
           </View>
           <View style={styles.statItem}>
-            <Ionicons name="clipboard-outline" size={16} color={COLORS.secondary} />
-            <Text style={styles.statText}>{account.progress.quizzesTaken} quizzes</Text>
+            <Ionicons name="clipboard-outline" size={16} color={theme.secondary} />
+            <Text style={[styles.statText, { color: theme.textSecondary }]}>{account.progress.quizzesTaken} quizzes</Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="flame" size={16} color="#FF6B35" />
-            <Text style={styles.statText}>{account.progress.streak} day streak</Text>
+            <Text style={[styles.statText, { color: theme.textSecondary }]}>{account.progress.streak} day streak</Text>
           </View>
         </View>
 
@@ -243,7 +253,7 @@ export default function FamilyLearningScreen({ navigation }) {
             style={styles.deleteBtn}
             onPress={() => handleDeleteAccount(account.id)}
           >
-            <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
+            <Ionicons name="trash-outline" size={20} color={theme.error} />
           </TouchableOpacity>
         )}
       </View>
@@ -251,9 +261,9 @@ export default function FamilyLearningScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => {
             if (navigation.canGoBack()) {
@@ -263,19 +273,19 @@ export default function FamilyLearningScreen({ navigation }) {
             }
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Family Learning</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Family Learning</Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Ionicons name="add-circle" size={28} color={COLORS.primary} />
+          <Ionicons name="add-circle" size={28} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Info Banner */}
-        <View style={styles.infoBanner}>
-          <FontAwesome5 name="users" size={20} color={COLORS.primary} />
-          <Text style={styles.infoBannerText}>
+        <View style={[styles.infoBanner, { backgroundColor: theme.surfaceVariant }]}>
+          <FontAwesome5 name="users" size={20} color={theme.primary} />
+          <Text style={[styles.infoBannerText, { color: theme.text }]}>
             Learn together! Create accounts for family members and track everyone's progress.
           </Text>
         </View>
@@ -283,12 +293,12 @@ export default function FamilyLearningScreen({ navigation }) {
         {/* Active Account Highlight */}
         {activeAccount && (
           <View style={styles.activeAccountSection}>
-            <Text style={styles.sectionTitle}>Currently Learning</Text>
-            <View style={styles.activeAccountCard}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Currently Learning</Text>
+            <View style={[styles.activeAccountCard, { backgroundColor: theme.surface, borderColor: theme.primary }]}>
               <Text style={styles.activeAccountAvatar}>{activeAccount.avatar}</Text>
               <View style={styles.activeAccountInfo}>
-                <Text style={styles.activeAccountName}>{activeAccount.name}</Text>
-                <Text style={styles.activeAccountRole}>{activeAccount.role}</Text>
+                <Text style={[styles.activeAccountName, { color: theme.text }]}>{activeAccount.name}</Text>
+                <Text style={[styles.activeAccountRole, { color: theme.textSecondary }]}>{activeAccount.role}</Text>
               </View>
               <Ionicons name="star" size={32} color="#FFD93D" />
             </View>
@@ -297,56 +307,72 @@ export default function FamilyLearningScreen({ navigation }) {
 
         {/* All Accounts */}
         <View style={styles.accountsSection}>
-          <Text style={styles.sectionTitle}>Family Members ({accounts.length})</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Family Members ({accounts.length})</Text>
           {accounts.map(renderAccountCard)}
         </View>
 
         {/* Family Activities */}
         <View style={styles.activitiesSection}>
-          <Text style={styles.sectionTitle}>Family Activities</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Family Activities</Text>
 
-          <TouchableOpacity style={styles.activityCard} onPress={handleGroupPractice} activeOpacity={0.7}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="people" size={28} color={COLORS.primary} />
+          <TouchableOpacity 
+            style={[styles.activityCard, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+            onPress={handleGroupPractice} 
+            activeOpacity={0.7}
+          >
+            <View style={[styles.activityIcon, { backgroundColor: theme.surfaceVariant }]}>
+              <Ionicons name="people" size={28} color={theme.primary} />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Group Practice</Text>
-              <Text style={styles.activityDescription}>Practice vocabulary together</Text>
+              <Text style={[styles.activityTitle, { color: theme.text }]}>Group Practice</Text>
+              <Text style={[styles.activityDescription, { color: theme.textSecondary }]}>Practice vocabulary together</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.activityCard} onPress={handleFamilyChallenge} activeOpacity={0.7}>
-            <View style={styles.activityIcon}>
+          <TouchableOpacity 
+            style={[styles.activityCard, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+            onPress={handleFamilyChallenge} 
+            activeOpacity={0.7}
+          >
+            <View style={[styles.activityIcon, { backgroundColor: theme.surfaceVariant }]}>
               <Ionicons name="trophy" size={28} color="#FFD93D" />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Family Challenge</Text>
-              <Text style={styles.activityDescription}>Compete in friendly quizzes</Text>
+              <Text style={[styles.activityTitle, { color: theme.text }]}>Family Challenge</Text>
+              <Text style={[styles.activityDescription, { color: theme.textSecondary }]}>Compete in friendly quizzes</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.activityCard} onPress={handleStoryTime} activeOpacity={0.7}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="book-outline" size={28} color={COLORS.secondary} />
+          <TouchableOpacity 
+            style={[styles.activityCard, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+            onPress={handleStoryTime} 
+            activeOpacity={0.7}
+          >
+            <View style={[styles.activityIcon, { backgroundColor: theme.surfaceVariant }]}>
+              <Ionicons name="book-outline" size={28} color={theme.secondary} />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Story Time</Text>
-              <Text style={styles.activityDescription}>Read stories as a family</Text>
+              <Text style={[styles.activityTitle, { color: theme.text }]}>Story Time</Text>
+              <Text style={[styles.activityDescription, { color: theme.textSecondary }]}>Read stories as a family</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.activityCard} onPress={handleFamilyProgress} activeOpacity={0.7}>
-            <View style={styles.activityIcon}>
+          <TouchableOpacity 
+            style={[styles.activityCard, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+            onPress={handleFamilyProgress} 
+            activeOpacity={0.7}
+          >
+            <View style={[styles.activityIcon, { backgroundColor: theme.surfaceVariant }]}>
               <Ionicons name="bar-chart" size={28} color="#4ECDC4" />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Family Progress</Text>
-              <Text style={styles.activityDescription}>View combined achievements</Text>
+              <Text style={[styles.activityTitle, { color: theme.text }]}>Family Progress</Text>
+              <Text style={[styles.activityDescription, { color: theme.textSecondary }]}>View combined achievements</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -354,36 +380,41 @@ export default function FamilyLearningScreen({ navigation }) {
       {/* Add Account Modal */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Family Member</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Add Family Member</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.text} />
+                <Ionicons name="close" size={28} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalScrollView}>
-              <Text style={styles.inputLabel}>Name *</Text>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Name *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
                 placeholder="Enter name"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 value={newAccountName}
                 onChangeText={setNewAccountName}
               />
 
-              <Text style={styles.inputLabel}>Role</Text>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Role</Text>
               <View style={styles.roleContainer}>
                 {ROLES.map((role) => (
                   <TouchableOpacity
                     key={role}
-                    style={[styles.roleOption, newAccountRole === role && styles.roleOptionActive]}
+                    style={[
+                      styles.roleOption, 
+                      { backgroundColor: theme.background, borderColor: theme.border },
+                      newAccountRole === role && { backgroundColor: theme.primary, borderColor: theme.primary }
+                    ]}
                     onPress={() => setNewAccountRole(role)}
                   >
                     <Text
                       style={[
                         styles.roleOptionText,
-                        newAccountRole === role && styles.roleOptionTextActive,
+                        { color: theme.text },
+                        newAccountRole === role && { color: theme.surface, fontWeight: '600' },
                       ]}
                     >
                       {role}
@@ -392,24 +423,25 @@ export default function FamilyLearningScreen({ navigation }) {
                 ))}
               </View>
 
-              <Text style={styles.inputLabel}>Age (Optional)</Text>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Age (Optional)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
                 placeholder="Enter age"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 value={newAccountAge}
                 onChangeText={setNewAccountAge}
                 keyboardType="number-pad"
               />
 
-              <Text style={styles.inputLabel}>Choose Avatar</Text>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Choose Avatar</Text>
               <View style={styles.avatarContainer}>
                 {AVATARS.map((avatar) => (
                   <TouchableOpacity
                     key={avatar}
                     style={[
                       styles.avatarOption,
-                      selectedAvatar === avatar && styles.avatarOptionActive,
+                      { backgroundColor: theme.background, borderColor: theme.border },
+                      selectedAvatar === avatar && { backgroundColor: theme.surfaceVariant, borderColor: theme.primary },
                     ]}
                     onPress={() => setSelectedAvatar(avatar)}
                   >
@@ -418,8 +450,8 @@ export default function FamilyLearningScreen({ navigation }) {
                 ))}
               </View>
 
-              <TouchableOpacity style={styles.createBtn} onPress={handleAddAccount}>
-                <Text style={styles.createBtnText}>Create Account</Text>
+              <TouchableOpacity style={[styles.createBtn, { backgroundColor: theme.primary }]} onPress={handleAddAccount}>
+                <Text style={[styles.createBtnText, { color: theme.background }]}>Create Account</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, SPACING, SHADOWS, useTheme } from '../constants/theme';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const USERS_DATABASE_KEY = '@echolingua_users_database';
@@ -24,6 +24,8 @@ export default function EmergencyContactsScreen({ navigation }) {
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactRelation, setContactRelation] = useState('');
+
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadEmergencyContacts();
@@ -141,23 +143,23 @@ export default function EmergencyContactsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Emergency Contacts</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Emergency Contacts</Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Ionicons name="add-circle" size={28} color={COLORS.primary} />
+          <Ionicons name="add-circle" size={28} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Info Banner */}
-        <View style={styles.infoBanner}>
-          <Ionicons name="information-circle" size={24} color={COLORS.primary} />
-          <Text style={styles.infoBannerText}>
+        <View style={[styles.infoBanner, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+          <Ionicons name="information-circle" size={24} color={theme.primary} />
+          <Text style={[styles.infoBannerText, { color: theme.text }]}>
             Emergency contacts can receive your recordings when you share stories. 
             This helps preserve important cultural knowledge.
           </Text>
@@ -166,23 +168,23 @@ export default function EmergencyContactsScreen({ navigation }) {
         {/* Contacts List */}
         {emergencyContacts.length > 0 ? (
           emergencyContacts.map((contact) => (
-            <View key={contact.id} style={styles.contactCard}>
+            <View key={contact.id} style={[styles.contactCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <View style={styles.contactIconContainer}>
-                <Ionicons name="person-circle" size={48} color={COLORS.primary} />
+                <Ionicons name="person-circle" size={48} color={theme.primary} />
               </View>
               <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactRelation}>{contact.relation}</Text>
+                <Text style={[styles.contactName, { color: theme.text }]}>{contact.name}</Text>
+                <Text style={[styles.contactRelation, { color: theme.primary }]}>{contact.relation}</Text>
                 {contact.email && (
                   <View style={styles.contactDetailRow}>
-                    <Ionicons name="mail" size={14} color={COLORS.textSecondary} />
-                    <Text style={styles.contactDetail}>{contact.email}</Text>
+                    <Ionicons name="mail" size={14} color={theme.textSecondary} />
+                    <Text style={[styles.contactDetail, { color: theme.textSecondary }]}>{contact.email}</Text>
                   </View>
                 )}
                 {contact.phone && (
                   <View style={styles.contactDetailRow}>
-                    <Ionicons name="call" size={14} color={COLORS.textSecondary} />
-                    <Text style={styles.contactDetail}>{contact.phone}</Text>
+                    <Ionicons name="call" size={14} color={theme.textSecondary} />
+                    <Text style={[styles.contactDetail, { color: theme.textSecondary }]}>{contact.phone}</Text>
                   </View>
                 )}
               </View>
@@ -190,23 +192,23 @@ export default function EmergencyContactsScreen({ navigation }) {
                 style={styles.deleteButton}
                 onPress={() => handleDeleteContact(contact.id)}
               >
-                <Ionicons name="trash-outline" size={22} color={COLORS.error} />
+                <Ionicons name="trash-outline" size={22} color={theme.error} />
               </TouchableOpacity>
             </View>
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={64} color={COLORS.textSecondary} />
-            <Text style={styles.emptyStateText}>No emergency contacts yet</Text>
-            <Text style={styles.emptyStateSubtext}>
+            <Ionicons name="people-outline" size={64} color={theme.textSecondary} />
+            <Text style={[styles.emptyStateText, { color: theme.text }]}>No emergency contacts yet</Text>
+            <Text style={[styles.emptyStateSubtext, { color: theme.textSecondary }]}>
               Add contacts who can receive your important recordings
             </Text>
             <TouchableOpacity
-              style={styles.addFirstButton}
+              style={[styles.addFirstButton, { backgroundColor: theme.primary }]}
               onPress={() => setShowAddModal(true)}
             >
-              <Ionicons name="add" size={20} color={COLORS.surface} />
-              <Text style={styles.addFirstButtonText}>Add First Contact</Text>
+              <Ionicons name="add" size={20} color={theme.background} />
+              <Text style={[styles.addFirstButtonText, { color: theme.background }]}>Add First Contact</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -215,24 +217,24 @@ export default function EmergencyContactsScreen({ navigation }) {
       {/* Add Contact Modal */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Emergency Contact</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Add Emergency Contact</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.text} />
+                <Ionicons name="close" size={28} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalScrollView}>
               {/* Name */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name *</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} />
+                <Text style={[styles.inputLabel, { color: theme.text }]}>Full Name *</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <Ionicons name="person-outline" size={20} color={theme.textSecondary} />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="Enter contact name"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={theme.textSecondary}
                     value={contactName}
                     onChangeText={setContactName}
                   />
@@ -241,13 +243,13 @@ export default function EmergencyContactsScreen({ navigation }) {
 
               {/* Relation */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Relationship</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="heart-outline" size={20} color={COLORS.textSecondary} />
+                <Text style={[styles.inputLabel, { color: theme.text }]}>Relationship</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <Ionicons name="heart-outline" size={20} color={theme.textSecondary} />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="e.g., Family, Elder, Community Leader"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={theme.textSecondary}
                     value={contactRelation}
                     onChangeText={setContactRelation}
                   />
@@ -256,13 +258,13 @@ export default function EmergencyContactsScreen({ navigation }) {
 
               {/* Email */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+                <Text style={[styles.inputLabel, { color: theme.text }]}>Email</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="Enter email address"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={theme.textSecondary}
                     value={contactEmail}
                     onChangeText={setContactEmail}
                     keyboardType="email-address"
@@ -273,13 +275,13 @@ export default function EmergencyContactsScreen({ navigation }) {
 
               {/* Phone */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} />
+                <Text style={[styles.inputLabel, { color: theme.text }]}>Phone Number</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <Ionicons name="call-outline" size={20} color={theme.textSecondary} />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="Enter phone number"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={theme.textSecondary}
                     value={contactPhone}
                     onChangeText={setContactPhone}
                     keyboardType="phone-pad"
@@ -287,8 +289,8 @@ export default function EmergencyContactsScreen({ navigation }) {
                 </View>
               </View>
 
-              <TouchableOpacity style={styles.addButton} onPress={handleAddContact}>
-                <Text style={styles.addButtonText}>Add Contact</Text>
+              <TouchableOpacity style={[styles.addButton, { backgroundColor: theme.primary }]} onPress={handleAddContact}>
+                <Text style={[styles.addButtonText, { color: theme.background }]}>Add Contact</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
 
 // Sample dictionary data
@@ -185,6 +186,7 @@ const DICTIONARY_DATA = [
 ];
 
 export default function DictionaryScreen({ navigation }) {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -267,18 +269,18 @@ export default function DictionaryScreen({ navigation }) {
   });
 
   const renderWordCard = ({ item }) => (
-    <TouchableOpacity style={styles.wordCard} onPress={() => handleWordPress(item)} activeOpacity={0.8}>
+    <TouchableOpacity style={[styles.wordCard, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={() => handleWordPress(item)} activeOpacity={0.8}>
       <View style={styles.wordCardHeader}>
         <View style={styles.wordCardInfo}>
-          <Text style={styles.wordText}>{item.word}</Text>
-          <Text style={styles.translationText}>{item.translation}</Text>
-          <Text style={styles.languageText}>{item.language}</Text>
+          <Text style={[styles.wordText, { color: theme.text }]}>{item.word}</Text>
+          <Text style={[styles.translationText, { color: theme.textSecondary }]}>{item.translation}</Text>
+          <Text style={[styles.languageText, { color: theme.primary }]}>{item.language}</Text>
         </View>
         <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
           <Ionicons
             name={favorites.includes(item.id) ? 'heart' : 'heart-outline'}
             size={24}
-            color={favorites.includes(item.id) ? '#FF6B6B' : COLORS.textSecondary}
+            color={favorites.includes(item.id) ? theme.error || '#FF6B6B' : theme.textSecondary}
           />
         </TouchableOpacity>
       </View>
@@ -289,73 +291,73 @@ export default function DictionaryScreen({ navigation }) {
     if (!selectedWord) return null;
 
     return (
-      <View style={styles.detailContainer}>
+      <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={styles.detailHeader}>
             <TouchableOpacity onPress={() => setSelectedWord(null)}>
-              <Ionicons name="arrow-back" size={28} color={COLORS.text} />
+              <Ionicons name="arrow-back" size={28} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.detailTitle}>Word Details</Text>
+            <Text style={[styles.detailTitle, { color: theme.text }]}>Word Details</Text>
             <TouchableOpacity onPress={() => toggleFavorite(selectedWord.id)}>
               <Ionicons
                 name={favorites.includes(selectedWord.id) ? 'heart' : 'heart-outline'}
                 size={28}
-                color={favorites.includes(selectedWord.id) ? '#FF6B6B' : COLORS.text}
+                color={favorites.includes(selectedWord.id) ? theme.error || '#FF6B6B' : theme.text}
               />
             </TouchableOpacity>
           </View>
 
           {/* Word Card */}
-          <View style={styles.detailCard}>
-            <Text style={styles.detailWord}>{selectedWord.word}</Text>
-            <Text style={styles.detailTranslation}>{selectedWord.translation}</Text>
+          <View style={[styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.detailWord, { color: theme.text }]}>{selectedWord.word}</Text>
+            <Text style={[styles.detailTranslation, { color: theme.textSecondary }]}>{selectedWord.translation}</Text>
             <View style={styles.metaContainer}>
               <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Language</Text>
-                <Text style={styles.metaValue}>{selectedWord.language}</Text>
+                <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>Language</Text>
+                <Text style={[styles.metaValue, { color: theme.primary }]}>{selectedWord.language}</Text>
               </View>
               <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Type</Text>
-                <Text style={styles.metaValue}>{selectedWord.partOfSpeech}</Text>
+                <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>Type</Text>
+                <Text style={[styles.metaValue, { color: theme.primary }]}>{selectedWord.partOfSpeech}</Text>
               </View>
               <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Category</Text>
-                <Text style={styles.metaValue}>{selectedWord.category}</Text>
+                <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>Category</Text>
+                <Text style={[styles.metaValue, { color: theme.primary }]}>{selectedWord.category}</Text>
               </View>
             </View>
           </View>
 
           {/* Pronunciation */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pronunciation</Text>
-            <View style={styles.pronunciationCard}>
-              <Text style={styles.pronunciationText}>{selectedWord.pronunciation}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Pronunciation</Text>
+            <View style={[styles.pronunciationCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.pronunciationText, { color: theme.text }]}>{selectedWord.pronunciation}</Text>
               <TouchableOpacity
                 style={styles.playBtn}
                 onPress={() => playPronunciation(selectedWord)}
               >
-                <Ionicons name="play-circle" size={48} color={COLORS.primary} />
+                <Ionicons name="play-circle" size={48} color={theme.primary} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Examples */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Examples</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Examples</Text>
             {selectedWord.examples.map((example, index) => (
-              <View key={index} style={styles.exampleCard}>
-                <Text style={styles.exampleText}>{example}</Text>
+              <View key={index} style={[styles.exampleCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.exampleText, { color: theme.text }]}>{example}</Text>
               </View>
             ))}
           </View>
 
           {/* Related Words */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Related Words</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Related Words</Text>
             {selectedWord.relatedWords.map((related, index) => (
-              <View key={index} style={styles.relatedCard}>
-                <Text style={styles.relatedText}>{related}</Text>
+              <View key={index} style={[styles.relatedCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.relatedText, { color: theme.text }]}>{related}</Text>
               </View>
             ))}
           </View>
@@ -368,7 +370,7 @@ export default function DictionaryScreen({ navigation }) {
 
   if (selectedWord) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         {renderWordDetail()}
       </SafeAreaView>
     );
@@ -378,9 +380,9 @@ export default function DictionaryScreen({ navigation }) {
   const languages = ['all', 'Kadazandusun', 'Iban', 'Bajau', 'Murut'];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => {
             if (navigation.canGoBack()) {
@@ -390,27 +392,27 @@ export default function DictionaryScreen({ navigation }) {
             }
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Dictionary</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Dictionary</Text>
         <TouchableOpacity onPress={() => Alert.alert('Info', `${DICTIONARY_DATA.length} words available`)}>
-          <Ionicons name="information-circle" size={24} color={COLORS.primary} />
+          <Ionicons name="information-circle" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={COLORS.textSecondary} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Ionicons name="search" size={20} color={theme.textSecondary} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Search words or translations..."
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={theme.textSecondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -418,15 +420,15 @@ export default function DictionaryScreen({ navigation }) {
       {/* Recent Searches */}
       {searchQuery.length === 0 && recentSearches.length > 0 && (
         <View style={styles.recentContainer}>
-          <Text style={styles.recentTitle}>Recent Searches</Text>
+          <Text style={[styles.recentTitle, { color: theme.textSecondary }]}>Recent Searches</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {recentSearches.map((word, index) => (
               <TouchableOpacity
                 key={index}
-                style={styles.recentChip}
+                style={[styles.recentChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
                 onPress={() => setSearchQuery(word)}
               >
-                <Text style={styles.recentChipText}>{word}</Text>
+                <Text style={[styles.recentChipText, { color: theme.text }]}>{word}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -434,46 +436,96 @@ export default function DictionaryScreen({ navigation }) {
       )}
 
       {/* Language Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer}
-      >
-        {languages.map((lang) => (
-          <TouchableOpacity
-            key={lang}
-            style={[styles.filterBtn, selectedLanguage === lang && styles.filterBtnActive]}
-            onPress={() => setSelectedLanguage(lang)}
-          >
-            <Text style={[styles.filterText, selectedLanguage === lang && styles.filterTextActive]}>
-              {lang === 'all' ? 'All Languages' : lang}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={{ paddingHorizontal: SPACING.l, marginBottom: SPACING.s }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 8 }}>Languages</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: SPACING.l, gap: 10 }}
+        >
+          {languages.map((lang) => (
+            <TouchableOpacity
+              key={lang}
+              activeOpacity={0.7}
+              style={[
+                styles.filterBtn, 
+                { 
+                  backgroundColor: selectedLanguage === lang ? theme.primary : theme.surface,
+                  borderColor: selectedLanguage === lang ? theme.primary : theme.border,
+                  borderWidth: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  elevation: selectedLanguage === lang ? 4 : 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                }
+              ]}
+              onPress={() => setSelectedLanguage(lang)}
+            >
+              <Text style={[
+                styles.filterText, 
+                { 
+                  color: selectedLanguage === lang ? '#FFFFFF' : theme.text,
+                  fontWeight: selectedLanguage === lang ? '700' : '500', 
+                  fontSize: 14,
+                }
+              ]}>
+                {lang === 'all' ? 'All' : lang}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Category Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer}
-      >
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.categoryBtn, selectedCategory === cat && styles.categoryBtnActive]}
-            onPress={() => setSelectedCategory(cat)}
-          >
-            <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>
-              {cat === 'all' ? 'All Categories' : cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={{ paddingHorizontal: SPACING.l, marginBottom: SPACING.m }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 8 }}>Categories</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: SPACING.l, gap: 10 }}
+        >
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              activeOpacity={0.7}
+              style={[
+                styles.categoryBtn,
+                { 
+                  backgroundColor: selectedCategory === cat ? theme.primary : theme.surface,
+                  borderColor: selectedCategory === cat ? theme.primary : theme.border,
+                  borderWidth: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  elevation: selectedCategory === cat ? 4 : 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                }
+              ]}
+              onPress={() => setSelectedCategory(cat)}
+            >
+              <Text style={[
+                styles.categoryText,
+                { 
+                  color: selectedCategory === cat ? '#FFFFFF' : theme.text,
+                  fontWeight: selectedCategory === cat ? '700' : '500', 
+                  fontSize: 14,
+                }
+              ]}>
+                {cat === 'all' ? 'All' : cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Results Count */}
-      <View style={styles.resultsBanner}>
-        <Text style={styles.resultsText}>
+      <View style={[styles.resultsBanner, { backgroundColor: theme.surfaceVariant }]}>
+        <Text style={[styles.resultsText, { color: theme.textSecondary }]}>
           {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''} found
         </Text>
       </View>
@@ -487,9 +539,9 @@ export default function DictionaryScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <FontAwesome5 name="book" size={48} color={COLORS.textSecondary} />
-            <Text style={styles.emptyText}>No words found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+            <FontAwesome5 name="book" size={48} color={theme.textSecondary} />
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No words found</Text>
+            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>Try adjusting your search or filters</Text>
           </View>
         }
       />

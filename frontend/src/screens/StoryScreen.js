@@ -8,8 +8,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { stories } from '../data/mockData';
 import { COLORS, SPACING, SHADOWS, FONTS, GLASS_EFFECTS } from '../constants/theme';
 import { playSound } from '../services/soundService';
+import { useTheme } from '../context/ThemeContext';
 
 export default function StoryScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [showTranslation, setShowTranslation] = useState(false);
   const [isElderMode, setIsElderMode] = useState(false);
@@ -182,9 +184,9 @@ export default function StoryScreen() {
   }, [audioSound]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header with Back Button */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.background }]}>
          <TouchableOpacity
            onPress={() => {
              if (navigation.canGoBack()) {
@@ -195,16 +197,16 @@ export default function StoryScreen() {
            }}
            style={styles.backButton}
          >
-           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+           <Ionicons name="arrow-back" size={24} color={theme.text} />
          </TouchableOpacity>
          <View style={{ flex: 1 }}>
-            <Text style={styles.category}>FOLKLORE</Text>
-            <Text style={styles.title}>{story.title}</Text>
+            <Text style={[styles.category, { color: theme.secondary }]}>FOLKLORE</Text>
+            <Text style={[styles.title, { color: theme.text }]}>{story.title}</Text>
             <View style={styles.metaRow}>
-                <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} /> 
-                <Text style={styles.metaText}> 5 min read</Text>
-                <Text style={styles.metaDivider}>•</Text>
-                <Text style={styles.metaText}>Intermediate</Text>
+                <Ionicons name="time-outline" size={16} color={theme.textSecondary} /> 
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}> 5 min read</Text>
+                <Text style={[styles.metaDivider, { color: theme.textSecondary }]}>•</Text>
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>Intermediate</Text>
             </View>
          </View>
       </View>
@@ -212,22 +214,32 @@ export default function StoryScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
         {/* Controls */}
-        <View style={styles.controlsCard}>
+        <View style={[
+          styles.controlsCard, 
+          { 
+            backgroundColor: theme.surface, 
+            borderWidth: 0, // Removed border
+            elevation: 2,
+            shadowColor: '#000',
+            shadowOpacity: 0.1,
+            shadowRadius: 4, 
+          }
+        ]}>
           <View style={styles.controlRow}>
-            <Text style={styles.controlLabel}>Show Translation</Text>
+            <Text style={[styles.controlLabel, { color: theme.text }]}>Show Translation</Text>
             <Switch 
-              trackColor={{ false: "#e0e0e0", true: COLORS.primary }}
-              thumbColor={COLORS.surface}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor={showTranslation ? theme.surface : theme.textSecondary}
               value={showTranslation} 
               onValueChange={setShowTranslation} 
             />
           </View>
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
           <View style={styles.controlRow}>
-            <Text style={styles.controlLabel}>Elder Mode (Larger Text)</Text>
+            <Text style={[styles.controlLabel, { color: theme.text }]}>Elder Mode (Larger Text)</Text>
             <Switch 
-              trackColor={{ false: "#e0e0e0", true: COLORS.secondary }}
-              thumbColor={COLORS.surface}
+              trackColor={{ false: theme.border, true: theme.secondary }}
+              thumbColor={isElderMode ? theme.surface : theme.textSecondary}
               value={isElderMode} 
               onValueChange={setIsElderMode} 
             />
@@ -235,42 +247,53 @@ export default function StoryScreen() {
         </View>
 
         {/* Audio Player */}
-        <TouchableOpacity style={[styles.audioPlayer, isCommunityStory && styles.audioPlayerDark]} onPress={toggleAudio} activeOpacity={0.9}>
-           <View style={[styles.playButton, isCommunityStory && styles.playButtonDark]}>
-             <MaterialIcons name={isPlaying ? "pause" : "play-arrow"} size={32} color={COLORS.surface} />
+        <TouchableOpacity style={[styles.audioPlayer, isCommunityStory && [styles.audioPlayerDark, { backgroundColor: theme.surface }], !isCommunityStory && { backgroundColor: theme.primary }]} onPress={toggleAudio} activeOpacity={0.9}>
+           <View style={[styles.playButton, isCommunityStory && [styles.playButtonDark, { backgroundColor: theme.primary }], !isCommunityStory && { backgroundColor: theme.surface }]}>
+             <MaterialIcons name={isPlaying ? "pause" : "play-arrow"} size={32} color={isCommunityStory ? theme.surface : theme.primary} />
            </View>
            <View style={styles.audioInfo}>
-             <Text style={[styles.audioTitle, isCommunityStory && styles.audioTitleDark]}>
+             <Text style={[styles.audioTitle, isCommunityStory && [styles.audioTitleDark, { color: theme.text }], !isCommunityStory && { color: theme.onPrimary || '#FFFFFF' }]}>
                {isCommunityStory ? 'Listen to Recording' : 'Listen to Legend'}
              </Text>
-             <Text style={[styles.audioSubtitle, isCommunityStory && styles.audioSubtitleDark]}>
+             <Text style={[styles.audioSubtitle, isCommunityStory && [styles.audioSubtitleDark, { color: theme.textSecondary }], !isCommunityStory && { color: 'rgba(255,255,255,0.8)' }]}>
                {isCommunityStory ? `Community Story • ${story.language}` : 'Narrated by Elder Kambera'}
              </Text>
              {audioSource && isPlaying && (
-               <Text style={styles.audioSourceLabel}>
+               <Text style={[styles.audioSourceLabel, { color: isCommunityStory ? theme.text : (theme.onPrimary || '#FFFFFF') }]}>
                  🔊 {audioSource === 'recorded' ? '🎙️ Recorded Audio' : '🗣️ Voice Reading (TTS)'}
                </Text>
              )}
            </View>
-           <Feather name="headphones" size={24} color={COLORS.primary} style={{ opacity: 0.5 }} />
+           <Feather name="headphones" size={24} color={isCommunityStory ? theme.primary : (theme.onPrimary || '#FFFFFF')} style={{ opacity: 0.5 }} />
         </TouchableOpacity>
 
         {/* Story Content */}
-        <View style={styles.contentCard}>
+        <View style={[
+          styles.contentCard, 
+          { 
+            backgroundColor: theme.surface, 
+            borderWidth: 0,
+            elevation: 3,
+            shadowColor: '#000',
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+          }
+        ]}>
           {isCommunityStory ? (
             // Community story: Show transcript
             <View style={styles.pageContainer}>
                <Text style={[
                  styles.storyText, 
+                 { color: theme.text },
                  isElderMode && styles.elderText
                ]}>
                   {story.transcript || 'No transcript available.'}
                </Text>
                
                {showTranslation && (
-                 <View style={styles.translationBox}>
-                   <Text style={styles.translationLabel}>Translation:</Text>
-                   <Text style={styles.translationText}>
+                 <View style={[styles.translationBox, { backgroundColor: theme.glassMedium, borderLeftColor: theme.secondary }]}>
+                   <Text style={[styles.translationLabel, { color: theme.secondary }]}>Translation:</Text>
+                   <Text style={[styles.translationText, { color: theme.textSecondary }]}>
                      Translation feature coming soon...
                      {/* TODO: Implement dynamic translation based on user language preference */}
                    </Text>
@@ -283,15 +306,16 @@ export default function StoryScreen() {
               <View key={index} style={styles.pageContainer}>
                  <Text style={[
                    styles.storyText, 
+                   { color: theme.text },
                    isElderMode && styles.elderText
                  ]}>
                     {page.text}
                  </Text>
                  
                  {showTranslation && (
-                   <View style={styles.translationBox}>
-                     <Text style={styles.translationLabel}>Translation:</Text>
-                     <Text style={styles.translationText}>
+                   <View style={[styles.translationBox, { backgroundColor: theme.glassMedium, borderLeftColor: theme.secondary }]}>
+                     <Text style={[styles.translationLabel, { color: theme.secondary }]}>Translation:</Text>
+                     <Text style={[styles.translationText, { color: theme.textSecondary }]}>
                        {page.translation}
                        {/* TODO: Implement dynamic translation based on user language preference */}
                      </Text>
@@ -304,11 +328,11 @@ export default function StoryScreen() {
         
         {/* Create Your Own Story CTA */}
         <TouchableOpacity 
-          style={styles.createStoryButton} 
+          style={[styles.createStoryButton, { backgroundColor: theme.secondary }]} 
           onPress={() => navigation.navigate('Record', { createStory: true })}
         >
-           <FontAwesome5 name="pencil-alt" size={20} color={COLORS.surface} />
-           <Text style={styles.createStoryText}>Create Your Own Folktale</Text>
+           <FontAwesome5 name="pencil-alt" size={20} color={theme.onPrimary || '#FFFFFF'} />
+           <Text style={[styles.createStoryText, { color: theme.onPrimary || '#FFFFFF' }]}>Create Your Own Folktale</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -396,8 +420,12 @@ const styles = StyleSheet.create({
     padding: SPACING.m,
     borderRadius: SPACING.l,
     marginBottom: SPACING.l,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '20', // transparent primary
+    borderWidth: 0, // No border
+    // borderColor: COLORS.primary + '20', // transparent primary
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
   audioPlayerDark: {
     backgroundColor: COLORS.glassLight,

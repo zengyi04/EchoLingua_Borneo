@@ -6,10 +6,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { stories } from '../data/mockData';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 const STORIES_STORAGE_KEY = '@echolingua_stories';
 
 export default function StoryLibraryScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [communityStories, setCommunityStories] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,81 +52,99 @@ export default function StoryLibraryScreen() {
     
     return (
       <TouchableOpacity 
-        style={styles.storyCard} 
+        style={[
+          styles.storyCard, 
+          { 
+            backgroundColor: theme.surface, 
+            borderColor: 'transparent',
+            shadowColor: theme.shadow,
+            shadowOpacity: 0.1,
+            elevation: 3,
+            marginBottom: 12
+          }
+        ]} 
         onPress={() => navigation.navigate('Story', { storyId: item.id, story: item })}
         activeOpacity={0.9}
       >
         <View style={styles.imageContainer}>
             {/* Placeholder for story image */}
-            <View style={[styles.placeholderImage, { backgroundColor: isCommunityStory ? COLORS.accent : COLORS.secondary }]}>
-               <Ionicons name={isCommunityStory ? "mic" : "book"} size={32} color={COLORS.surface} />
+            <View style={[
+              styles.placeholderImage, 
+              { 
+                backgroundColor: isCommunityStory ? theme.accent + '15' : theme.secondary + '15' // Light background
+              }
+            ]}>
+               <Ionicons 
+                 name={isCommunityStory ? "mic" : "book"} 
+                 size={28} 
+                 color={isCommunityStory ? theme.accent : theme.secondary} // Colored icon
+               />
             </View>
         </View>
         <View style={styles.contentContainer}>
-            <Text style={styles.category}>{isCommunityStory ? 'COMMUNITY' : 'FOLKLORE'}</Text>
-            <Text style={styles.title}>{item.title}</Text>
+            <Text style={[styles.category, { color: theme.textSecondary }]}>{isCommunityStory ? 'COMMUNITY' : 'FOLKLORE'}</Text>
+            <Text style={[styles.title, { color: theme.text }]}>{item.title}</Text>
             <View style={styles.metaRow}>
                 {isCommunityStory ? (
                   <>
-                    <View style={[styles.aiBadge, { backgroundColor: COLORS.accent + '20' }]}>
-                        <Ionicons name="people" size={12} color={COLORS.accent} />
-                        <Text style={[styles.aiBadgeText, { color: COLORS.accent }]}>
+                    <View style={[styles.aiBadge, { backgroundColor: theme.accent + '15' }]}>
+                        <Ionicons name="people" size={12} color={theme.accent} />
+                        <Text style={[styles.aiBadgeText, { color: theme.accent }]}>
                           {item.language || 'Community'}
                         </Text>
                     </View>
-                    <Text style={styles.metaText}> • {Math.floor(item.duration / 60)}:{String(item.duration % 60).padStart(2, '0')}</Text>
                   </>
                 ) : (
                   <>
-                    <View style={styles.aiBadge}>
-                        <MaterialCommunityIcons name="robot" size={12} color={COLORS.primary} />
-                        <Text style={styles.aiBadgeText}>AI Illustrated</Text>
+                    <View style={[styles.aiBadge, { backgroundColor: theme.primary + '15' }]}>
+                        <MaterialCommunityIcons name="robot" size={12} color={theme.primary} />
+                        <Text style={[styles.aiBadgeText, { color: theme.primary }]}>AI Illustrated</Text>
                     </View>
-                    <Text style={styles.metaText}> • 5 min</Text>
+                    <Text style={[styles.metaText, { color: theme.textSecondary }]}> • 5 min</Text>
                   </>
                 )}
             </View>
         </View>
         <View style={styles.arrowContainer}>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={24} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Story Library</Text>
-        <Text style={styles.headerSubtitle}>Discover ancient wisdom & tales</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Story Library</Text>
+        <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Discover ancient wisdom & tales</Text>
       </View>
 
 
       {/* NEW: AI Story Generator Call-to-Action */}
       <View style={styles.createSection}>
           <TouchableOpacity 
-            style={styles.createCard} 
+            style={[styles.createCard, { backgroundColor: theme.primary, shadowColor: theme.shadow }]} 
             activeOpacity={0.9} 
             onPress={() => navigation.navigate('RecordTab', { createStory: true })}
           >
-              <View style={styles.createIconBg}>
-                  <MaterialCommunityIcons name="magic-staff" size={24} color={COLORS.surface} />
+              <View style={[styles.createIconBg, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <MaterialCommunityIcons name="magic-staff" size={24} color={theme.onPrimary || '#FFFFFF'} />
               </View>
               <View style={styles.createTexts}>
-                  <Text style={styles.createTitle}>Create AI Folktale</Text>
-                  <Text style={styles.createSubtitle}>Turn elder recordings into illustrated e-books instantly.</Text>
+                  <Text style={[styles.createTitle, { color: theme.onPrimary || '#FFFFFF' }]}>Create AI Folktale</Text>
+                  <Text style={[styles.createSubtitle, { color: 'rgba(255,255,255,0.8)' }]}>Turn elder recordings into illustrated e-books instantly.</Text>
               </View>
-              <Ionicons name="arrow-forward-circle" size={32} color={COLORS.surface} />
+              <Ionicons name="arrow-forward-circle" size={32} color={theme.onPrimary || '#FFFFFF'} />
           </TouchableOpacity>
       </View>
       
-      <Text style={styles.sectionHeader}>Community Archive</Text>
+      <Text style={[styles.sectionHeader, { color: theme.text }]}>Community Archive</Text>
       
       <FlatList
         data={allStories}

@@ -2,127 +2,128 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
+import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS, useTheme } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LearnScreen() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={24} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Structured Lessons</Text>
-        <Text style={styles.headerSubtitle}>Master the basics step-by-step</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Structured Lessons</Text>
+        <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Master the basics step-by-step</Text>
       </View>
       
       <ScrollView contentContainerStyle={styles.content}>
         {/* Progress Overview */}
-        <View style={styles.progressCard}>
-          <Text style={styles.progressLabel}>Course Progress</Text>
-          <View style={styles.progressBarBg}>
-             <View style={[styles.progressBarFill, { width: '35%' }]} />
+        <View style={[styles.progressCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.progressLabel, { color: theme.text }]}>Course Progress</Text>
+          <View style={[styles.progressBarBg, { backgroundColor: theme.border }]}>
+             <View style={[styles.progressBarFill, { width: '35%', backgroundColor: theme.secondary }]} />
           </View>
-          <Text style={styles.progressText}>Unit 1: Greetings • 4/12 Lessons</Text>
+          <Text style={[styles.progressText, { color: theme.textSecondary }]}>Unit 1: Greetings • 4/12 Lessons</Text>
         </View>
 
         {/* Lesson List */}
         <View style={styles.lessonSection}>
-           <Text style={styles.sectionTitle}>Living Language Scenarios</Text>
+           <Text style={[styles.sectionTitle, { color: theme.text }]}>Living Language Scenarios</Text>
            
            <TouchableOpacity 
-             style={styles.lessonItem}
+             style={[styles.lessonItem, { backgroundColor: theme.card || theme.surface, borderColor: theme.border }]}
              onPress={() => navigation.navigate('LivingLanguage', { scenario: 'home' })}
              activeOpacity={0.7}
            >
-              <View style={[styles.iconBox, { backgroundColor: COLORS.success }]}>
-                <Ionicons name="home" size={20} color={COLORS.surface} />
+              <View style={[styles.iconBox, { backgroundColor: theme.success }]}>
+                <Ionicons name="home" size={20} color={theme.onPrimary || '#FFFFFF'} />
               </View>
               <View style={styles.lessonInfo}>
-                 <Text style={styles.lessonTitle}>At Home (Di Rumah)</Text>
-                 <Text style={styles.lessonDesc}>Family conversations & daily routines</Text>
+                 <Text style={[styles.lessonTitle, { color: theme.text }]}>At Home (Di Rumah)</Text>
+                 <Text style={[styles.lessonDesc, { color: theme.textSecondary }]}>Family conversations & daily routines</Text>
               </View>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+              <Ionicons name="checkmark-circle" size={20} color={theme.success} />
            </TouchableOpacity>
 
            <TouchableOpacity 
-             style={styles.lessonItem}
+             style={[styles.lessonItem, { backgroundColor: theme.card, borderColor: theme.border }]}
              onPress={() => navigation.navigate('LivingLanguage', { scenario: 'tamu' })}
              activeOpacity={0.7}
            >
-              <View style={[styles.iconBox, { backgroundColor: COLORS.secondary }]}>
-                <Ionicons name="basket" size={20} color={COLORS.surface} />
+              <View style={[styles.iconBox, { backgroundColor: theme.secondary }]}>
+                <Ionicons name="basket" size={20} color={theme.onPrimary || '#FFFFFF'} />
               </View>
               <View style={styles.lessonInfo}>
-                 <Text style={styles.lessonTitle}>At the Tamu (Market)</Text>
-                 <Text style={styles.lessonDesc}>Bargaining & buying produce</Text>
+                 <Text style={[styles.lessonTitle, { color: theme.text }]}>At the Tamu (Market)</Text>
+                 <Text style={[styles.lessonDesc, { color: theme.textSecondary }]}>Bargaining & buying produce</Text>
               </View>
-              <Ionicons name="play-circle" size={24} color={COLORS.primary} />
+              <Ionicons name="play-circle" size={24} color={theme.primary} />
            </TouchableOpacity>
 
            <TouchableOpacity 
-             style={styles.lessonItem}
+             style={[styles.lessonItem, { backgroundColor: theme.card, borderColor: theme.border }]}
              onPress={() => navigation.navigate('LivingLanguage', { scenario: 'elders' })}
              activeOpacity={0.7}
            >
-              <View style={[styles.iconBox, { backgroundColor: COLORS.accent }]}>
-                <Ionicons name="people" size={20} color={COLORS.surface} />
+              <View style={[styles.iconBox, { backgroundColor: theme.accent || COLORS.accent }]}>
+                <Ionicons name="people" size={20} color={theme.onPrimary || '#FFFFFF'} />
               </View>
               <View style={styles.lessonInfo}>
-                 <Text style={styles.lessonTitle}>Greeting Elders</Text>
-                 <Text style={styles.lessonDesc}>Respectful terms & gestures</Text>
+                 <Text style={[styles.lessonTitle, { color: theme.text }]}>Greeting Elders</Text>
+                 <Text style={[styles.lessonDesc, { color: theme.textSecondary }]}>Respectful terms & gestures</Text>
               </View>
-              <View style={styles.tag}><Text style={styles.tagText}>CULTURE</Text></View>
+              <View style={[styles.tag, { backgroundColor: theme.surfaceVariant }]}><Text style={[styles.tagText, { color: theme.accent || COLORS.accent }]}>CULTURE</Text></View>
            </TouchableOpacity>
 
            <TouchableOpacity 
-             style={styles.lessonItem}
+             style={[styles.lessonItem, { backgroundColor: theme.card, borderColor: theme.border }]}
              onPress={() => navigation.navigate('LivingLanguage', { scenario: 'festival' })}
              activeOpacity={0.7}
            >
               <View style={[styles.iconBox, { backgroundColor: '#E91E63' }]}> 
-                <Ionicons name="musical-notes" size={20} color={COLORS.surface} />
+                <Ionicons name="musical-notes" size={20} color={'#FFFFFF'} />
               </View>
               <View style={styles.lessonInfo}>
-                 <Text style={styles.lessonTitle}>Harvest Festival</Text>
-                 <Text style={styles.lessonDesc}>Songs & specialized vocabulary</Text>
+                 <Text style={[styles.lessonTitle, { color: theme.text }]}>Harvest Festival</Text>
+                 <Text style={[styles.lessonDesc, { color: theme.textSecondary }]}>Songs & specialized vocabulary</Text>
               </View>
-              <Ionicons name="play-circle" size={24} color={COLORS.primary} />
+              <Ionicons name="play-circle" size={24} color={theme.primary} />
            </TouchableOpacity>
 
            <TouchableOpacity 
-             style={styles.lessonItem}
+             style={[styles.lessonItem, { backgroundColor: theme.card, borderColor: theme.border }]}
              onPress={() => navigation.navigate('LivingLanguage', { scenario: 'school' })}
              activeOpacity={0.7}
            >
               <View style={[styles.iconBox, { backgroundColor: '#3F51B5' }]}> 
-                <Ionicons name="school" size={20} color={COLORS.surface} />
+                <Ionicons name="school" size={20} color={'#FFFFFF'} />
               </View>
               <View style={styles.lessonInfo}>
-                 <Text style={styles.lessonTitle}>At School</Text>
-                 <Text style={styles.lessonDesc}>Classroom phrases and introductions</Text>
+                 <Text style={[styles.lessonTitle, { color: theme.text }]}>At School</Text>
+                 <Text style={[styles.lessonDesc, { color: theme.textSecondary }]}>Classroom phrases and introductions</Text>
               </View>
-              <Ionicons name="play-circle" size={24} color={COLORS.primary} />
+              <Ionicons name="play-circle" size={24} color={theme.primary} />
            </TouchableOpacity>
 
            <TouchableOpacity 
-             style={styles.lessonItem}
+             style={[styles.lessonItem, { backgroundColor: theme.card, borderColor: theme.border }]}
              onPress={() => navigation.navigate('LivingLanguage', { scenario: 'clinic' })}
              activeOpacity={0.7}
            >
               <View style={[styles.iconBox, { backgroundColor: '#F44336' }]}> 
-                <Ionicons name="medkit" size={20} color={COLORS.surface} />
+                <Ionicons name="medkit" size={20} color={'#FFFFFF'} />
               </View>
               <View style={styles.lessonInfo}>
-                 <Text style={styles.lessonTitle}>At Clinic</Text>
-                 <Text style={styles.lessonDesc}>Health and help-seeking conversations</Text>
+                 <Text style={[styles.lessonTitle, { color: theme.text }]}>At Clinic</Text>
+                 <Text style={[styles.lessonDesc, { color: theme.textSecondary }]}>Health and help-seeking conversations</Text>
               </View>
-              <Ionicons name="play-circle" size={24} color={COLORS.primary} />
+              <Ionicons name="play-circle" size={24} color={theme.primary} />
            </TouchableOpacity>
         </View>
       </ScrollView>

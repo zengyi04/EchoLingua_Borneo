@@ -1,13 +1,15 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Text, ActivityIndicator, AppState } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from './src/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
-export default function App() {
+function AppContent() {
+  const { theme, isDark } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
   const sessionStartTime = useRef(Date.now());
@@ -62,35 +64,57 @@ export default function App() {
       console.error('Failed to save learning time:', error);
     }
   };
+  
+  const NavigationTheme = isDark ? DarkTheme : DefaultTheme;
+  const MyTheme = {
+    ...NavigationTheme,
+    colors: {
+      ...NavigationTheme.colors,
+      primary: theme.primary,
+      background: theme.background,
+      card: theme.surface,
+      text: theme.text,
+      border: theme.border,
+      notification: theme.accent,
+    },
+  };
 
   if (isLoading) {
     return (
-      <View style={styles.splashContainer}>
-        <StatusBar style="light" />
+      <View style={[styles.splashContainer, { backgroundColor: theme.background }]}>
+        <StatusBar style={isDark ? "light" : "dark"} />
         <Image 
           source={require('./assets/appLogo.png')} 
           style={styles.logo} 
           resizeMode="contain" 
         />
-        <Text style={styles.appName}>EchoLingua</Text>
-        <Text style={styles.tagline}>Revitalizing Borneo's Voices</Text>
-        <ActivityIndicator size="small" color={COLORS.primary} style={styles.loader} />
+        <Text style={[styles.appName, { color: theme.primary }]}>EchoLingua</Text>
+        <Text style={[styles.tagline, { color: theme.secondary }]}>Revitalizing Borneo's Voices</Text>
+        <ActivityIndicator size="small" color={theme.primary} style={styles.loader} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={MyTheme}>
       <AppNavigator />
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? "light" : "dark"} />
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   splashContainer: {
     flex: 1,
-    backgroundColor: COLORS.background, // Use theme background
+    // Background color is handled in style prop
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -102,12 +126,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    // Color handled in style prop
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
-    color: COLORS.secondary,
+    // Color handled in style prop
     marginBottom: 40,
   },
   loader: {

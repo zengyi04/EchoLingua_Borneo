@@ -7,6 +7,7 @@ import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { prepareSingleRecording, stopAndReleaseRecording } from '../services/recordingService';
+import { useTheme } from '../context/ThemeContext';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.EXPO_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash';
@@ -45,6 +46,7 @@ function assertGeminiConfig() {
 }
 
 export default function AIChatScreen({ navigation }) {
+  const { theme } = useTheme();
   const [messages, setMessages] = useState([
     { id: 'seed', role: 'assistant', text: 'Hello! I\'m your EchoLingua AI assistant. Ask me anything about Borneo indigenous languages (Kadazandusun, Iban, Bajau, Murut), culture, stories, or pronunciation. How can I help you today?' },
   ]);
@@ -310,17 +312,17 @@ export default function AIChatScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={24} color={theme.primary} />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>AI Chat</Text>
-          <Text style={styles.headerSubtitle}>Ask by typing or speaking</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>AI Chat</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Ask by typing or speaking</Text>
         </View>
       </View>
 
@@ -329,32 +331,50 @@ export default function AIChatScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.chatContent}
         renderItem={({ item }) => (
-          <View style={[styles.messageBubble, item.role === 'assistant' ? styles.aiBubble : styles.userBubble]}>
-            <Text style={[styles.messageText, item.role === 'assistant' ? styles.aiText : styles.userText]}>
+          <View style={[
+            styles.messageBubble, 
+            item.role === 'assistant' 
+              ? [styles.aiBubble, { backgroundColor: theme.surface }] 
+              : [styles.userBubble, { backgroundColor: theme.primary }]
+          ]}>
+            <Text style={[
+              styles.messageText, 
+              item.role === 'assistant' 
+                ? [styles.aiText, { color: theme.text }] 
+                : [styles.userText, { color: '#FFFFFF' }]
+            ]}>
               {item.text}
             </Text>
           </View>
         )}
       />
 
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
         <TouchableOpacity
-          style={[styles.micButton, isRecording && styles.micButtonActive]}
+          style={[styles.micButton, isRecording && [styles.micButtonActive, { backgroundColor: theme.error }]]}
           onPress={isRecording ? stopVoiceRecordingAndAsk : startVoiceRecording}
           disabled={loading}
         >
-          <Ionicons name={isRecording ? 'stop' : 'mic'} size={20} color={COLORS.surface} />
+          <Ionicons name={isRecording ? 'stop' : 'mic'} size={20} color={theme.surface} />
         </TouchableOpacity>
         <TextInput
           value={input}
           onChangeText={setInput}
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.inputBackground, color: theme.text }]}
           placeholder="Ask any question..."
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={theme.textSecondary}
           editable={!loading}
         />
-        <TouchableOpacity style={[styles.sendButton, !canSend && styles.sendDisabled]} onPress={() => handleSendText()} disabled={!canSend}>
-          <Ionicons name="send" size={18} color={COLORS.surface} />
+        <TouchableOpacity 
+          style={[
+            styles.sendButton, 
+            !canSend && styles.sendDisabled, 
+            { backgroundColor: canSend ? theme.primary : theme.disabled }
+          ]} 
+          onPress={() => handleSendText()} 
+          disabled={!canSend}
+        >
+          <Ionicons name="send" size={18} color={theme.surface} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -392,8 +412,12 @@ const styles = StyleSheet.create({
   userBubble: { 
     alignSelf: 'flex-end', 
     backgroundColor: COLORS.primary,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 0,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   messageText: { fontSize: 15, lineHeight: 22 },
   aiText: { color: COLORS.text },
@@ -403,9 +427,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.m,
     borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
-    backgroundColor: COLORS.glassMedium,
+    borderTopColor: 'transparent',
+    backgroundColor: 'transparent', // Let parent handle bg or use transparent
     gap: SPACING.s,
+    marginBottom: SPACING.xs, // Slight lift
   },
   micButton: {
     width: 44,
@@ -414,19 +439,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.small,
+    ...SHADOWS.medium, // Increased shadow
   },
   micButtonActive: { backgroundColor: COLORS.error },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 22,
+    borderWidth: 0, // No border
+    borderRadius: 24,
     paddingHorizontal: SPACING.m,
     paddingVertical: SPACING.m,
     color: COLORS.text,
-    backgroundColor: COLORS.glassLight,
+    backgroundColor: COLORS.surface, // Solid background
     fontSize: 15,
+    ...SHADOWS.medium, // Nice elevation
+    elevation: 4,     // Android shadow
   },
   sendButton: {
     width: 44,

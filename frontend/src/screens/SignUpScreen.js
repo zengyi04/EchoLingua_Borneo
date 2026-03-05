@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const USERS_DATABASE_KEY = '@echolingua_users_database';
@@ -25,6 +26,7 @@ const ROLES = [
 ];
 
 export default function SignUpScreen({ navigation }) {
+  const { theme } = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -132,7 +134,7 @@ export default function SignUpScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -144,56 +146,26 @@ export default function SignUpScreen({ navigation }) {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
-              style={styles.backButton}
+              style={[styles.backButton, { backgroundColor: theme.surfaceVariant }]}
               onPress={() => navigation.goBack()}
             >
-              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+              <Ionicons name="arrow-back" size={24} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join our language preservation community</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Create Account</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Join our language preservation community</Text>
           </View>
 
           {/* Sign Up Form */}
-          <View style={styles.formContainer}>
-            {/* Role Selection */}
-            <Text style={styles.sectionTitle}>Select Your Role</Text>
-            <View style={styles.rolesContainer}>
-              {ROLES.map((role) => (
-                <TouchableOpacity
-                  key={role.id}
-                  style={[
-                    styles.roleCard,
-                    selectedRole === role.id && styles.roleCardActive,
-                  ]}
-                  onPress={() => setSelectedRole(role.id)}
-                >
-                  <Ionicons
-                    name={role.icon}
-                    size={32}
-                    color={selectedRole === role.id ? COLORS.primary : COLORS.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.roleLabel,
-                      selectedRole === role.id && styles.roleLabelActive,
-                    ]}
-                  >
-                    {role.label}
-                  </Text>
-                  <Text style={styles.roleDescription}>{role.description}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
+          <View style={[styles.formContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {/* Full Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name *</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Full Name *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="person-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Enter your full name"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={fullName}
                   onChangeText={setFullName}
                   autoCapitalize="words"
@@ -203,13 +175,13 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Email */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email *</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Email *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Enter your email"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -221,13 +193,13 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Password */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password *</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Password *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Create a password (min 6 characters)"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -237,7 +209,7 @@ export default function SignUpScreen({ navigation }) {
                   <Ionicons
                     name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                     size={20}
-                    color={COLORS.textSecondary}
+                    color={theme.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -245,13 +217,13 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Confirm Password */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Confirm Password *</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Confirm Password *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Re-enter your password"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
@@ -261,24 +233,24 @@ export default function SignUpScreen({ navigation }) {
                   <Ionicons
                     name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
                     size={20}
-                    color={COLORS.textSecondary}
+                    color={theme.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Optional Information */}
-            <Text style={styles.sectionTitle}>Additional Information (Optional)</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Additional Information (Optional)</Text>
 
             {/* Age */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Age</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="calendar-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Age</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="calendar-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Enter your age"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={age}
                   onChangeText={setAge}
                   keyboardType="numeric"
@@ -288,13 +260,13 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Community */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Community/Region</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="location-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Community/Region</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="location-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="e.g., Kadazandusun, Iban, Bajau"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={community}
                   onChangeText={setCommunity}
                 />
@@ -303,13 +275,13 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Languages */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Languages You Know</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="language-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Languages You Know</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Ionicons name="language-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="e.g., Kadazandusun, English, Malay"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={languages}
                   onChangeText={setLanguages}
                 />
@@ -318,21 +290,21 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Sign Up Button */}
             <TouchableOpacity
-              style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
+              style={[styles.signUpButton, { backgroundColor: theme.primary }, isLoading && styles.signUpButtonDisabled]}
               onPress={handleSignUp}
               disabled={isLoading}
             >
-              <Text style={styles.signUpButtonText}>
+              <Text style={[styles.signUpButtonText, { color: theme.background }]}>
                 {isLoading ? 'Creating Account...' : 'Create Account'}
               </Text>
-              <Ionicons name="arrow-forward" size={20} color={COLORS.surface} />
+              <Ionicons name="arrow-forward" size={20} color={theme.background} />
             </TouchableOpacity>
 
             {/* Login Link */}
             <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
+              <Text style={[styles.loginText, { color: theme.textSecondary }]}>Already have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.loginLink}>Log In</Text>
+                <Text style={[styles.loginLink, { color: theme.primary }]}>Log In</Text>
               </TouchableOpacity>
             </View>
           </View>

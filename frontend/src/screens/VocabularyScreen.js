@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import VocabularyCard from '../components/VocabularyCard';
 import { vocabularyList } from '../data/mockData';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const LANGUAGE_OPTIONS = [
   { id: 'malay', label: 'Malay', flag: 'MY', speechCode: 'ms-MY' },
@@ -23,6 +24,7 @@ const VOCABULARY_BY_DIFFICULTY = {
 };
 
 export default function VocabularyScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [selectedLevel, setSelectedLevel] = useState('easy');
   const [savedWords, setSavedWords] = useState({ easy: [], medium: [], hard: [] });
@@ -61,7 +63,7 @@ export default function VocabularyScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
@@ -73,69 +75,69 @@ export default function VocabularyScreen() {
           }}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Learn Vocabulary</Text>
-          <Text style={styles.headerSubtitle}>Practice pronunciation and test yourself</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Learn Vocabulary</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Practice pronunciation and test yourself</Text>
         </View>
         <TouchableOpacity style={styles.testButton} onPress={() => setTestingMode(!testingMode)}>
           <MaterialCommunityIcons
             name="clipboard-check"
             size={24}
-            color={testingMode ? COLORS.error : COLORS.primary}
+            color={testingMode ? theme.error : theme.primary}
           />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.languageSelectionContainer}>
-        <Text style={styles.languageLabel}>Learning:</Text>
+      <View style={[styles.languageSelectionContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.languageLabel, { color: theme.text }]}>Learning:</Text>
         <TouchableOpacity
-          style={styles.languageButton}
+          style={[styles.languageButton, { backgroundColor: theme.glassLight, borderColor: theme.border }]}
           onPress={() => {
             setSelectingLanguageType('from');
             setShowLanguageModal(true);
           }}
         >
-          <Text style={styles.languageText}>{fromLanguage.flag} {fromLanguage.label}</Text>
+          <Text style={[styles.languageText, { color: theme.text }]}>{fromLanguage.flag} {fromLanguage.label}</Text>
         </TouchableOpacity>
-        <Ionicons name="arrow-forward" size={20} color={COLORS.textSecondary} />
+        <Ionicons name="arrow-forward" size={20} color={theme.textSecondary} />
         <TouchableOpacity
-          style={styles.languageButton}
+          style={[styles.languageButton, { backgroundColor: theme.glassLight, borderColor: theme.border }]}
           onPress={() => {
             setSelectingLanguageType('to');
             setShowLanguageModal(true);
           }}
         >
-          <Text style={styles.languageText}>{toLanguage.flag} {toLanguage.label}</Text>
+          <Text style={[styles.languageText, { color: theme.text }]}>{toLanguage.flag} {toLanguage.label}</Text>
         </TouchableOpacity>
       </View>
 
       {testingMode && (
-        <View style={styles.testingBanner}>
-          <MaterialCommunityIcons name="lightbulb" size={18} color={COLORS.accent} />
-          <Text style={styles.testingText}>Testing mode enabled: record speech and check accuracy.</Text>
+        <View style={[styles.testingBanner, { backgroundColor: theme.primary + '20' }]}>
+          <MaterialCommunityIcons name="lightbulb" size={18} color={theme.primary} />
+          <Text style={[styles.testingText, { color: theme.primary }]}>Testing mode enabled: record speech and check accuracy.</Text>
         </View>
       )}
 
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { backgroundColor: theme.surface }]}>
         {['easy', 'medium', 'hard'].map((level) => (
           <TouchableOpacity
             key={level}
-            style={[styles.tab, selectedLevel === level && styles.tabActive]}
+            style={[styles.tab, { backgroundColor: theme.glassLight, borderColor: theme.border }, selectedLevel === level && { backgroundColor: theme.primary, borderColor: theme.primary }]}
             onPress={() => setSelectedLevel(level)}
           >
-            <Text style={[styles.tabText, selectedLevel === level && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: theme.textSecondary }, selectedLevel === level && { color: theme.surface, fontWeight: 'bold' }]}>
               {level.charAt(0).toUpperCase() + level.slice(1)}
             </Text>
-            <Text style={styles.tabCount}>{VOCABULARY_BY_DIFFICULTY[level].length} words</Text>
+            <Text style={[styles.tabCount, { color: theme.textSecondary, opacity: 0.7 }, selectedLevel === level && { color: theme.surface }]}>{VOCABULARY_BY_DIFFICULTY[level].length} words</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.counterRow}>
-        <MaterialCommunityIcons name="bookmark" size={16} color={COLORS.success} />
-        <Text style={styles.counterText}>{savedWords[selectedLevel].length} saved</Text>
+        <MaterialCommunityIcons name="bookmark" size={16} color={theme.success} />
+        <Text style={[styles.counterText, { color: theme.textSecondary }]}>{savedWords[selectedLevel].length} saved</Text>
       </View>
 
       <FlatList
@@ -158,17 +160,26 @@ export default function VocabularyScreen() {
 
       <Modal visible={showLanguageModal} transparent animationType="slide" onRequestClose={() => setShowLanguageModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select {selectingLanguageType === 'from' ? 'Source' : 'Translation'} Language</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Select {selectingLanguageType === 'from' ? 'Source' : 'Translation'} Language
+              </Text>
               <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
-                <Ionicons name="close" size={26} color={COLORS.text} />
+                <Ionicons name="close" size={26} color={theme.text} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.languageList}>
               {LANGUAGE_OPTIONS.map((lang) => (
-                <TouchableOpacity key={lang.id} style={styles.languageOption} onPress={() => selectLanguage(lang)}>
-                  <Text style={styles.languageOptionText}>{lang.flag} {lang.label}</Text>
+                <TouchableOpacity
+                  key={lang.id}
+                  style={[
+                    styles.languageOption,
+                    { backgroundColor: theme.background, borderColor: theme.border }
+                  ]}
+                  onPress={() => selectLanguage(lang)}
+                >
+                  <Text style={[styles.languageOptionText, { color: theme.text }]}>{lang.flag} {lang.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>

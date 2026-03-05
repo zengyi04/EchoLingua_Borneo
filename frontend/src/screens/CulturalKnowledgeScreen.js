@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const KNOWLEDGE_CATEGORIES = [
   {
@@ -189,19 +190,20 @@ const KNOWLEDGE_CATEGORIES = [
 ];
 
 export default function CulturalKnowledgeScreen({ navigation }) {
+  const { theme } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [filterLanguage, setFilterLanguage] = useState('all');
 
   const renderCategoryCard = ({ item }) => (
     <TouchableOpacity
-      style={[styles.categoryCard, { borderColor: item.color }]}
+      style={[styles.categoryCard, { borderColor: item.color, backgroundColor: theme.surface }]}
       onPress={() => setSelectedCategory(item)}
       activeOpacity={0.8}
     >
       <Text style={styles.categoryIcon}>{item.icon}</Text>
-      <Text style={styles.categoryTitle}>{item.title}</Text>
-      <Text style={styles.categoryCount}>{item.articles.length} articles</Text>
+      <Text style={[styles.categoryTitle, { color: theme.text }]}>{item.title}</Text>
+      <Text style={[styles.categoryCount, { color: theme.textSecondary }]}>{item.articles.length} articles</Text>
       <View style={[styles.categoryAccent, { backgroundColor: item.color }]} />
     </TouchableOpacity>
   );
@@ -218,9 +220,9 @@ export default function CulturalKnowledgeScreen({ navigation }) {
       <View style={styles.articleListContainer}>
         <View style={styles.articleHeader}>
           <TouchableOpacity onPress={() => setSelectedCategory(null)}>
-            <Ionicons name="arrow-back" size={28} color={COLORS.text} />
+            <Ionicons name="arrow-back" size={28} color={theme.text} />
           </TouchableOpacity>
-          <Text style={styles.articleHeaderTitle}>{selectedCategory.title}</Text>
+          <Text style={[styles.articleHeaderTitle, { color: theme.text }]}>{selectedCategory.title}</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -230,10 +232,18 @@ export default function CulturalKnowledgeScreen({ navigation }) {
             {['all', 'Kadazandusun', 'Iban', 'Bajau', 'Murut'].map((lang) => (
               <TouchableOpacity
                 key={lang}
-                style={[styles.filterBtn, filterLanguage === lang && styles.filterBtnActive]}
+                style={[
+                    styles.filterBtn, 
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                    filterLanguage === lang && { backgroundColor: theme.primary, borderColor: theme.primary }
+                ]}
                 onPress={() => setFilterLanguage(lang)}
               >
-                <Text style={[styles.filterText, filterLanguage === lang && styles.filterTextActive]}>
+                <Text style={[
+                    styles.filterText, 
+                    { color: theme.textSecondary },
+                    filterLanguage === lang && { color: theme.onPrimary || '#FFFFFF' }
+                ]}>
                   {lang === 'all' ? 'All' : lang}
                 </Text>
               </TouchableOpacity>
@@ -245,18 +255,18 @@ export default function CulturalKnowledgeScreen({ navigation }) {
           {filteredArticles.map((article) => (
             <TouchableOpacity
               key={article.id}
-              style={styles.articleCard}
+              style={[styles.articleCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() => setSelectedArticle(article)}
             >
-              <Text style={styles.articleTitle}>{article.title}</Text>
-              <Text style={styles.articleLanguage}>{article.language}</Text>
-              <Text style={styles.articlePreview} numberOfLines={3}>
+              <Text style={[styles.articleTitle, { color: theme.text }]}>{article.title}</Text>
+              <Text style={[styles.articleLanguage, { color: theme.primary }]}>{article.language}</Text>
+              <Text style={[styles.articlePreview, { color: theme.textSecondary }]} numberOfLines={3}>
                 {article.content}
               </Text>
               <View style={styles.tagsContainer}>
                 {article.tags.map((tag, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{tag}</Text>
+                  <View key={index} style={[styles.tag, { backgroundColor: theme.primary + '20' }]}>
+                    <Text style={[styles.tagText, { color: theme.primary }]}>{tag}</Text>
                   </View>
                 ))}
               </View>
@@ -274,34 +284,34 @@ export default function CulturalKnowledgeScreen({ navigation }) {
       <View style={styles.detailContainer}>
         <View style={styles.detailHeader}>
           <TouchableOpacity onPress={() => setSelectedArticle(null)}>
-            <Ionicons name="arrow-back" size={28} color={COLORS.text} />
+            <Ionicons name="arrow-back" size={28} color={theme.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
           <TouchableOpacity>
-            <Ionicons name="bookmark-outline" size={28} color={COLORS.primary} />
+            <Ionicons name="bookmark-outline" size={28} color={theme.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={{ marginLeft: SPACING.m }}>
-            <Ionicons name="share-outline" size={28} color={COLORS.primary} />
+            <Ionicons name="share-outline" size={28} color={theme.primary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailContent}>
-          <Text style={styles.detailTitle}>{selectedArticle.title}</Text>
-          <Text style={styles.detailLanguage}>{selectedArticle.language}</Text>
+          <Text style={[styles.detailTitle, { color: theme.text }]}>{selectedArticle.title}</Text>
+          <Text style={[styles.detailLanguage, { color: theme.primary }]}>{selectedArticle.language}</Text>
 
           <View style={styles.detailTagsContainer}>
             {selectedArticle.tags.map((tag, index) => (
-              <View key={index} style={styles.detailTag}>
-                <Text style={styles.detailTagText}>{tag}</Text>
+              <View key={index} style={[styles.detailTag, { backgroundColor: theme.primary + '20' }]}>
+                <Text style={[styles.detailTagText, { color: theme.primary }]}>{tag}</Text>
               </View>
             ))}
           </View>
 
-          <Text style={styles.detailText}>{selectedArticle.content}</Text>
+          <Text style={[styles.detailText, { color: theme.text }]}>{selectedArticle.content}</Text>
 
-          <View style={styles.contributionNote}>
-            <Ionicons name="information-circle" size={20} color={COLORS.primary} />
-            <Text style={styles.contributionNoteText}>
+          <View style={[styles.contributionNote, { backgroundColor: theme.surfaceVariant }]}>
+            <Ionicons name="information-circle" size={20} color={theme.primary} />
+            <Text style={[styles.contributionNoteText, { color: theme.textSecondary }]}>
               This knowledge is preserved through oral tradition and community contributions.
             </Text>
           </View>
@@ -311,15 +321,15 @@ export default function CulturalKnowledgeScreen({ navigation }) {
   };
 
   if (selectedArticle) {
-    return <SafeAreaView style={styles.container}>{renderArticleDetail()}</SafeAreaView>;
+    return <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>{renderArticleDetail()}</SafeAreaView>;
   }
 
   if (selectedCategory) {
-    return <SafeAreaView style={styles.container}>{renderArticleList()}</SafeAreaView>;
+    return <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>{renderArticleList()}</SafeAreaView>;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -331,18 +341,18 @@ export default function CulturalKnowledgeScreen({ navigation }) {
             }
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cultural Knowledge</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Cultural Knowledge</Text>
         <TouchableOpacity>
-          <Ionicons name="search" size={24} color={COLORS.primary} />
+          <Ionicons name="search" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Info Banner */}
-      <View style={styles.infoBanner}>
-        <MaterialCommunityIcons name="library" size={24} color={COLORS.primary} />
-        <Text style={styles.infoBannerText}>
+      <View style={[styles.infoBanner, { backgroundColor: theme.primary + '20' }]}>
+        <MaterialCommunityIcons name="library" size={24} color={theme.primary} />
+        <Text style={[styles.infoBannerText, { color: theme.text }]}>
           Preserving indigenous knowledge and cultural heritage of Borneo
         </Text>
       </View>

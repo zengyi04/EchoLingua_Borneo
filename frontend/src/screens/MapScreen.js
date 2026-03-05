@@ -16,6 +16,7 @@ import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyD04MCoHQ_n0U7ODku5-bY5uKeU237_o0k';
 
@@ -92,6 +93,7 @@ const CULTURAL_LOCATIONS = [
 ];
 
 export default function MapScreen({ navigation }) {
+  const { theme } = useTheme();
   const [region, setRegion] = useState({
     latitude: 1.5535,
     longitude: 110.3593,
@@ -355,7 +357,19 @@ export default function MapScreen({ navigation }) {
     return (
       <TouchableOpacity
         key={location.id}
-        style={[styles.locationCard, { borderLeftColor: location.color }]}
+        style={[
+          styles.locationCard, 
+          { 
+            borderLeftColor: location.color, 
+            backgroundColor: theme.surface, 
+            borderColor: theme.border,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3
+          }
+        ]}
         onPress={() => {
           handleMarkerPress(location);
           setShowSearchResults(false);
@@ -367,42 +381,42 @@ export default function MapScreen({ navigation }) {
         </View>
         <View style={styles.locationInfo}>
           <View style={styles.locationNameRow}>
-            <Text style={styles.locationName}>{location.name}</Text>
+            <Text style={[styles.locationName, { color: theme.text }]}>{location.name}</Text>
             {distance !== null && (
-              <Text style={styles.distanceText}>{distance.toFixed(1)} km</Text>
+              <Text style={[styles.distanceText, { color: theme.textSecondary }]}>{distance.toFixed(1)} km</Text>
             )}
           </View>
-          <Text style={styles.locationDescription} numberOfLines={2}>
+          <Text style={[styles.locationDescription, { color: theme.textSecondary }]} numberOfLines={2}>
             {location.description}
           </Text>
           <View style={styles.languageTagsContainer}>
             {location.languages.map((lang, idx) => (
-              <View key={idx} style={styles.languageTag}>
-                <Text style={styles.languageTagText}>{lang}</Text>
+              <View key={idx} style={[styles.languageTag, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
+                <Text style={[styles.languageTagText, { color: theme.textSecondary }]}>{lang}</Text>
               </View>
             ))}
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
       </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading map...</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading map...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => {
             if (navigation.canGoBack()) {
@@ -413,25 +427,25 @@ export default function MapScreen({ navigation }) {
           }}
           style={styles.backButton}
         >
-          <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={28} color={theme.primary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Cultural Map</Text>
-          <Text style={styles.headerSubtitle}>Discover language learning places</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Cultural Map</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Discover language learning places</Text>
         </View>
-        <TouchableOpacity onPress={centerOnUserLocation} style={styles.locationButton}>
-          <MaterialCommunityIcons name="crosshairs-gps" size={24} color={COLORS.primary} />
+        <TouchableOpacity onPress={centerOnUserLocation} style={[styles.locationButton, { backgroundColor: theme.glassMedium }]}>
+          <MaterialCommunityIcons name="crosshairs-gps" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchWrapper}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+        <View style={[styles.searchContainer, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
+          <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.text }]}
             placeholder="Search locations near you..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={searchWorldDestination}
@@ -441,7 +455,7 @@ export default function MapScreen({ navigation }) {
             <Ionicons
               name={searchingDestination ? 'time-outline' : 'locate'}
               size={20}
-              color={COLORS.primary}
+              color={theme.primary}
             />
           </TouchableOpacity>
           {searchQuery.length > 0 && (
@@ -449,19 +463,19 @@ export default function MapScreen({ navigation }) {
               setSearchQuery('');
               setShowSearchResults(false);
             }}>
-              <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+              <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <View style={styles.searchResultsDropdown}>
-            <View style={styles.searchResultsHeader}>
-              <Text style={styles.searchResultsTitle}>
+          <View style={[styles.searchResultsDropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={[styles.searchResultsHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.searchResultsTitle, { color: theme.text }]}>
                 {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
               </Text>
-              <Text style={styles.searchResultsSubtitle}>Sorted by distance</Text>
+              <Text style={[styles.searchResultsSubtitle, { color: theme.textSecondary }]}>Sorted by distance</Text>
             </View>
             <ScrollView 
               style={styles.searchResultsList}
@@ -512,26 +526,26 @@ export default function MapScreen({ navigation }) {
 
       {/* Selected Location Detail Card */}
       {selectedLocation && (
-        <View style={styles.detailCard}>
+        <View style={[styles.detailCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
           <View style={styles.detailHeader}>
             <View style={styles.detailTitleContainer}>
               <Ionicons name={selectedLocation.icon} size={24} color={selectedLocation.color} />
-              <Text style={styles.detailTitle}>{selectedLocation.name}</Text>
+              <Text style={[styles.detailTitle, { color: theme.text }]}>{selectedLocation.name}</Text>
             </View>
             <TouchableOpacity onPress={() => setSelectedLocation(null)}>
-              <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+              <Ionicons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.detailType}>{selectedLocation.type}</Text>
-          <Text style={styles.detailDescription}>{selectedLocation.description}</Text>
+          <Text style={[styles.detailType, { color: theme.primary }]}>{selectedLocation.type}</Text>
+          <Text style={[styles.detailDescription, { color: theme.textSecondary }]}>{selectedLocation.description}</Text>
 
           <View style={styles.languageList}>
-            <Text style={styles.languageListTitle}>Languages:</Text>
+            <Text style={[styles.languageListTitle, { color: theme.text }]}>Languages:</Text>
             <View style={styles.languageTagsContainer}>
               {selectedLocation.languages.map((lang, idx) => (
-                <View key={idx} style={[styles.languageTag, styles.languageTagLarge]}>
-                  <Text style={styles.languageTagText}>{lang}</Text>
+                <View key={idx} style={[styles.languageTag, styles.languageTagLarge, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
+                  <Text style={[styles.languageTagText, { color: theme.text }]}>{lang}</Text>
                 </View>
               ))}
             </View>
@@ -559,13 +573,13 @@ export default function MapScreen({ navigation }) {
 
       {/* Locations List */}
       {!selectedLocation && (
-        <View style={styles.locationsList}>
+        <View style={[styles.locationsList, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
           <View style={styles.locationsHeader}>
-            <Text style={styles.locationsTitle}>
+            <Text style={[styles.locationsTitle, { color: theme.text }]}>
               {filteredLocations.length} {filteredLocations.length === 1 ? 'Place' : 'Places'}
             </Text>
             {searchQuery && (
-              <Text style={styles.searchResults}>for "{searchQuery}"</Text>
+              <Text style={[styles.searchResults, { color: theme.textSecondary }]}>for "{searchQuery}"</Text>
             )}
           </View>
           <ScrollView
@@ -690,12 +704,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.glassLight,
     paddingVertical: SPACING.m,
     borderTopLeftRadius: SPACING.l,
     borderTopRightRadius: SPACING.l,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.4)',
     ...SHADOWS.large,
     maxHeight: 220,
   },

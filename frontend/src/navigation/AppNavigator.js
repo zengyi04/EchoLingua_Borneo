@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 
@@ -35,13 +36,15 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
+  const { theme } = useTheme();
+
   return (
     <Tab.Navigator
       initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
+          backgroundColor: theme.surface,
           borderTopWidth: 0,
           elevation: 0,
           ...SHADOWS.medium,
@@ -49,8 +52,8 @@ function TabNavigator() {
           paddingBottom: Platform.OS === 'ios' ? 28 : 12,
           paddingTop: 12,
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textSecondary,
         tabBarShowLabel: true,
         tabBarLabelStyle: {
           fontSize: 12,
@@ -65,8 +68,8 @@ function TabNavigator() {
             iconName = focused ? 'book' : 'book-outline';
           } else if (route.name === 'RecordTab') {
             return (
-               <View style={styles.floatingButton}>
-                 <Ionicons name="mic" size={32} color={COLORS.surface} />
+               <View style={[styles.floatingButton, { backgroundColor: theme.secondary }]}>
+                 <Ionicons name="mic" size={32} color={theme.surface} />
                </View>
             );
           } else if (route.name === 'StoriesTab') {

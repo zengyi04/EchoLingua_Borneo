@@ -14,11 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const USERS_DATABASE_KEY = '@echolingua_users_database';
 
 export default function LoginScreen({ navigation }) {
+  const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -89,7 +91,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -100,27 +102,27 @@ export default function LoginScreen({ navigation }) {
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="language" size={64} color={COLORS.primary} />
+            <View style={[styles.logoContainer, { backgroundColor: theme.primary + '20' }]}>
+              <Ionicons name="language" size={64} color={theme.primary} />
             </View>
-            <Text style={styles.title}>EchoLingua</Text>
-            <Text style={styles.subtitle}>Preserving Indigenous Languages</Text>
+            <Text style={[styles.title, { color: theme.text }]}>EchoLingua</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Preserving Indigenous Languages</Text>
           </View>
 
           {/* Login Form */}
-          <View style={styles.formContainer}>
-            <Text style={styles.formTitle}>Welcome Back</Text>
-            <Text style={styles.formSubtitle}>Log in to continue your journey</Text>
+          <View style={[styles.formContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.formTitle, { color: theme.text }]}>Welcome Back</Text>
+            <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Log in to continue your journey</Text>
 
             {/* Email Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Email</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Enter your email"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -132,13 +134,13 @@ export default function LoginScreen({ navigation }) {
 
             {/* Password Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Password</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Enter your password"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={theme.textSecondary}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -148,7 +150,7 @@ export default function LoginScreen({ navigation }) {
                   <Ionicons
                     name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                     size={20}
-                    color={COLORS.textSecondary}
+                    color={theme.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -156,21 +158,21 @@ export default function LoginScreen({ navigation }) {
 
             {/* Login Button */}
             <TouchableOpacity
-              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              style={[styles.loginButton, { backgroundColor: theme.primary }, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>
+              <Text style={[styles.loginButtonText, { color: theme.background }]}>
                 {isLoading ? 'Logging in...' : 'Log In'}
               </Text>
-              <Ionicons name="arrow-forward" size={20} color={COLORS.surface} />
+              <Ionicons name="arrow-forward" size={20} color={theme.background} />
             </TouchableOpacity>
 
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Don't have an account? </Text>
+              <Text style={[styles.signupText, { color: theme.textSecondary }]}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                <Text style={styles.signupLink}>Sign Up</Text>
+                <Text style={[styles.signupLink, { color: theme.primary }]}>Sign Up</Text>
               </TouchableOpacity>
             </View>
 
@@ -179,14 +181,14 @@ export default function LoginScreen({ navigation }) {
               style={styles.skipButton}
               onPress={() => navigation.navigate('MainTabs')}
             >
-              <Text style={styles.skipButtonText}>Continue as Guest</Text>
+              <Text style={[styles.skipButtonText, { color: theme.textSecondary }]}>Continue as Guest</Text>
             </TouchableOpacity>
           </View>
 
           {/* Info Banner */}
-          <View style={styles.infoBanner}>
-            <Ionicons name="information-circle" size={20} color={COLORS.primary} />
-            <Text style={styles.infoBannerText}>
+          <View style={[styles.infoBanner, { backgroundColor: theme.primary + '10' }]}>
+            <Ionicons name="information-circle" size={20} color={theme.primary} />
+            <Text style={[styles.infoBannerText, { color: theme.textSecondary }]}>
               Create an account to save your progress, share stories, and connect with the community
             </Text>
           </View>
@@ -236,11 +238,9 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   formContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: SPACING.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     ...SHADOWS.medium,
   },
   formTitle: {
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.l,
   },
   inputGroup: {
-    marginBottom: SPACING.l,
+    marginBottom: SPACING.m,
   },
   inputLabel: {
     fontSize: 14,
@@ -266,11 +266,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
     borderRadius: 12,
     paddingHorizontal: SPACING.m,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     height: 50,
   },
   input: {

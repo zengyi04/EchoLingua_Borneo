@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const FESTIVALS = [
   {
@@ -114,6 +115,7 @@ const FESTIVALS = [
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function CulturalEventsScreen({ navigation }) {
+  const { theme } = useTheme();
   const [selectedFestival, setSelectedFestival] = useState(null);
   const [filterLanguage, setFilterLanguage] = useState('all'); // all, Kadazandusun, Iban, Bajau, Murut
   const [playingSound, setPlayingSound] = useState(null);
@@ -149,20 +151,33 @@ export default function CulturalEventsScreen({ navigation }) {
 
   const renderFestivalCard = ({ item }) => (
     <TouchableOpacity
-      style={styles.festivalCard}
+      style={[
+        styles.festivalCard, 
+        { 
+          backgroundColor: theme.surface, 
+          // Removed border
+          borderWidth: 0,
+          elevation: 4, // Android shadow
+          shadowColor: '#000', // iOS shadow
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          marginBottom: SPACING.m
+        }
+      ]}
       onPress={() => setSelectedFestival(item)}
       activeOpacity={0.8}
     >
       <View style={styles.festivalCardHeader}>
         <Text style={styles.festivalIcon}>{item.icon}</Text>
         <View style={styles.festivalCardInfo}>
-          <Text style={styles.festivalName}>{item.name}</Text>
-          <Text style={styles.festivalLanguage}>{item.language}</Text>
-          <Text style={styles.festivalDate}>{item.date}</Text>
+          <Text style={[styles.festivalName, { color: theme.text }]}>{item.name}</Text>
+          <Text style={[styles.festivalLanguage, { color: theme.textSecondary }]}>{item.language}</Text>
+          <Text style={[styles.festivalDate, { color: theme.textSecondary }]}>{item.date}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+        <Ionicons name="chevron-forward" size={24} color={theme.primary} />
       </View>
-      <Text style={styles.festivalDescription} numberOfLines={2}>
+      <Text style={[styles.festivalDescription, { color: theme.textSecondary }]} numberOfLines={2}>
         {item.description}
       </Text>
     </TouchableOpacity>
@@ -172,35 +187,58 @@ export default function CulturalEventsScreen({ navigation }) {
     if (!selectedFestival) return null;
 
     return (
-      <View style={styles.detailContainer}>
+      <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={styles.detailHeader}>
+          <View style={[styles.detailHeader, { backgroundColor: theme.surface }]}>
             <TouchableOpacity onPress={() => setSelectedFestival(null)}>
-              <Ionicons name="arrow-back" size={28} color={COLORS.text} />
+              <Ionicons name="arrow-back" size={28} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.detailTitle}>{selectedFestival.name}</Text>
+            <Text style={[styles.detailTitle, { color: theme.text }]}>{selectedFestival.name}</Text>
             <View style={{ width: 28 }} />
           </View>
 
           {/* Icon & Info */}
-          <View style={styles.detailHero}>
+          <View style={[
+            styles.detailHero, 
+            { 
+              backgroundColor: theme.surface, 
+              borderColor: 'transparent',
+              borderWidth: 0,
+              elevation: 4,
+              shadowColor: '#000',
+              shadowOpacity: 0.1,
+              shadowRadius: 8
+            }
+          ]}>
             <Text style={styles.detailIcon}>{selectedFestival.icon}</Text>
-            <Text style={styles.detailLanguage}>{selectedFestival.language}</Text>
-            <Text style={styles.detailDate}>{selectedFestival.date}</Text>
-            <Text style={styles.detailDescription}>{selectedFestival.description}</Text>
+            <Text style={[styles.detailLanguage, { color: theme.primary }]}>{selectedFestival.language}</Text>
+            <Text style={[styles.detailDate, { color: theme.textSecondary }]}>{selectedFestival.date}</Text>
+            <Text style={[styles.detailDescription, { color: theme.text }]}>{selectedFestival.description}</Text>
           </View>
 
           {/* Traditions */}
-          <View style={styles.detailSection}>
+          <View style={[
+            styles.detailSection, 
+            { 
+              backgroundColor: theme.surface, 
+              borderColor: 'transparent', 
+              borderWidth: 0,
+              elevation: 2,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              marginTop: SPACING.l // More spacing
+            }
+          ]}>
             <View style={styles.sectionHeader}>
-              <FontAwesome5 name="star" size={20} color={COLORS.primary} />
-              <Text style={styles.sectionTitle}>Traditions</Text>
+              <FontAwesome5 name="star" size={20} color={theme.primary} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Traditions</Text>
             </View>
             {selectedFestival.traditions.map((tradition, index) => (
               <View key={index} style={styles.listItem}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.listText}>{tradition}</Text>
+                <Text style={[styles.bullet, { color: theme.primary }]}>•</Text>
+                <Text style={[styles.listText, { color: theme.text }]}>{tradition}</Text>
               </View>
             ))}
           </View>
@@ -208,26 +246,26 @@ export default function CulturalEventsScreen({ navigation }) {
           {/* Vocabulary */}
           <View style={styles.detailSection}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="book" size={20} color={COLORS.secondary} />
-              <Text style={styles.sectionTitle}>Festival Vocabulary</Text>
+              <Ionicons name="book" size={20} color={theme.secondary} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Festival Vocabulary</Text>
             </View>
             {selectedFestival.vocabulary.map((item, index) => (
-              <View key={index} style={styles.vocabularyCard}>
+              <View key={index} style={[styles.vocabularyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.vocabularyHeader}>
-                  <Text style={styles.vocabularyWord}>{item.word}</Text>
+                  <Text style={[styles.vocabularyWord, { color: theme.text }]}>{item.word}</Text>
                   <TouchableOpacity 
-                    style={[styles.soundBtn, playingSound === `vocab-${index}` && styles.soundBtnActive]}
+                    style={[styles.soundBtn, { backgroundColor: theme.surfaceVariant }, playingSound === `vocab-${index}` && styles.soundBtnActive]}
                     onPress={() => playWord(item.word, 'vocab', index)}
                   >
                     <Ionicons 
                       name={playingSound === `vocab-${index}` ? "pause" : "volume-medium"} 
                       size={20} 
-                      color={playingSound === `vocab-${index}` ? COLORS.surface : COLORS.primary} 
+                      color={playingSound === `vocab-${index}` ? COLORS.surface : theme.primary} 
                     />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.vocabularyMeaning}>{item.meaning}</Text>
-                <Text style={styles.vocabularyPronunciation}>📢 {item.pronunciation}</Text>
+                <Text style={[styles.vocabularyMeaning, { color: theme.textSecondary }]}>{item.meaning}</Text>
+                <Text style={[styles.vocabularyPronunciation, { color: theme.textSecondary }]}>📢 {item.pronunciation}</Text>
               </View>
             ))}
           </View>
@@ -236,25 +274,25 @@ export default function CulturalEventsScreen({ navigation }) {
           <View style={styles.detailSection}>
             <View style={styles.sectionHeader}>
               <Ionicons name="chatbubbles" size={20} color="#FF6B6B" />
-              <Text style={styles.sectionTitle}>Traditional Greetings</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Traditional Greetings</Text>
             </View>
             {selectedFestival.greetings.map((greeting, index) => (
-              <View key={index} style={styles.greetingCard}>
+              <View key={index} style={[styles.greetingCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                 <View style={styles.vocabularyHeader}>
-                  <Text style={styles.greetingPhrase}>{greeting.phrase}</Text>
+                  <Text style={[styles.greetingPhrase, { color: theme.text }]}>{greeting.phrase}</Text>
                   <TouchableOpacity 
-                    style={[styles.soundBtn, playingSound === `greeting-${index}` && styles.soundBtnActive]}
+                    style={[styles.soundBtn, { backgroundColor: theme.card }, playingSound === `greeting-${index}` && styles.soundBtnActive]}
                     onPress={() => playWord(greeting.phrase, 'greeting', index)}
                   >
                     <Ionicons 
                       name={playingSound === `greeting-${index}` ? "pause" : "volume-medium"} 
                       size={20} 
-                      color={playingSound === `greeting-${index}` ? COLORS.surface : COLORS.primary} 
+                      color={playingSound === `greeting-${index}` ? COLORS.surface : theme.primary} 
                     />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.greetingMeaning}>{greeting.meaning}</Text>
-                <Text style={styles.greetingPronunciation}>📢 {greeting.pronunciation}</Text>
+                <Text style={[styles.greetingMeaning, { color: theme.textSecondary }]}>{greeting.meaning}</Text>
+                <Text style={[styles.greetingPronunciation, { color: theme.textSecondary }]}>📢 {greeting.pronunciation}</Text>
               </View>
             ))}
           </View>
@@ -263,14 +301,14 @@ export default function CulturalEventsScreen({ navigation }) {
           <View style={styles.detailSection}>
             <View style={styles.sectionHeader}>
               <FontAwesome5 name="tasks" size={20} color="#4ECDC4" />
-              <Text style={styles.sectionTitle}>What You Can Do</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>What You Can Do</Text>
             </View>
             {selectedFestival.activities.map((activity, index) => (
               <View key={index} style={styles.activityItem}>
-                <View style={styles.activityNumber}>
-                  <Text style={styles.activityNumberText}>{index + 1}</Text>
+                <View style={[styles.activityNumber, { backgroundColor: theme.surfaceVariant }]}>
+                  <Text style={[styles.activityNumberText, { color: theme.primary }]}>{index + 1}</Text>
                 </View>
-                <Text style={styles.activityText}>{activity}</Text>
+                <Text style={[styles.activityText, { color: theme.text }]}>{activity}</Text>
               </View>
             ))}
           </View>
@@ -283,16 +321,16 @@ export default function CulturalEventsScreen({ navigation }) {
 
   if (selectedFestival) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         {renderFestivalDetail()}
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <TouchableOpacity
           onPress={() => {
             if (navigation.canGoBack()) {
@@ -302,35 +340,60 @@ export default function CulturalEventsScreen({ navigation }) {
             }
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cultural Events</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Cultural Events</Text>
         <View style={{ width: 24 }} />
       </View>
 
       {/* Language Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer}
-      >
-        {['all', 'Kadazandusun', 'Iban', 'Bajau', 'Murut'].map((lang) => (
-          <TouchableOpacity
-            key={lang}
-            style={[styles.filterBtn, filterLanguage === lang && styles.filterBtnActive]}
-            onPress={() => setFilterLanguage(lang)}
-          >
-            <Text style={[styles.filterText, filterLanguage === lang && styles.filterTextActive]}>
-              {lang === 'all' ? 'All Festivals' : lang}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={{ paddingHorizontal: SPACING.l, paddingVertical: SPACING.s }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 8 }}>Filter by Culture</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 10, paddingRight: SPACING.l }}
+        >
+          {['all', 'Kadazandusun', 'Iban', 'Bajau', 'Murut'].map((lang) => (
+            <TouchableOpacity
+              key={lang}
+              activeOpacity={0.7}
+              style={[
+                styles.filterBtn, 
+                { 
+                  backgroundColor: filterLanguage === lang ? theme.primary : theme.surface,
+                  borderColor: filterLanguage === lang ? theme.primary : theme.border,
+                  borderWidth: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  elevation: filterLanguage === lang ? 4 : 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                }
+              ]}
+              onPress={() => setFilterLanguage(lang)}
+            >
+              <Text style={[
+                styles.filterText, 
+                { 
+                  color: filterLanguage === lang ? '#FFFFFF' : theme.text,
+                  fontWeight: filterLanguage === lang ? '700' : '500',
+                  fontSize: 14 
+                }
+              ]}>
+                {lang === 'all' ? 'All' : lang}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Info Banner */}
-      <View style={styles.infoBanner}>
-        <FontAwesome5 name="info-circle" size={20} color={COLORS.primary} />
-        <Text style={styles.infoBannerText}>
+      <View style={[styles.infoBanner, { backgroundColor: theme.surfaceVariant }]}>
+        <FontAwesome5 name="info-circle" size={20} color={theme.primary} />
+        <Text style={[styles.infoBannerText, { color: theme.textSecondary }]}>
           Learn about indigenous festivals and their traditional vocabulary
         </Text>
       </View>
@@ -344,8 +407,8 @@ export default function CulturalEventsScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <FontAwesome5 name="calendar" size={48} color={COLORS.textSecondary} />
-            <Text style={styles.emptyText}>No festivals found</Text>
+            <FontAwesome5 name="calendar" size={48} color={theme.textSecondary} />
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No festivals found</Text>
           </View>
         }
       />
@@ -522,13 +585,19 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   detailSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    // backgroundColor: 'rgba(255, 255, 255, 0.1)', // Removed hardcoded
     marginHorizontal: SPACING.l,
     marginTop: SPACING.m,
     borderRadius: 16,
     padding: SPACING.m,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
+    borderWidth: 0, // Removed border
+    // borderColor: 'rgba(0,0,0,0.06)',
+    elevation: 2, // Added shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    backgroundColor: '#FFFFFF', // Default (will be overridden by theme if applied, but safe fallback)
   },
   sectionHeader: {
     flexDirection: 'row',

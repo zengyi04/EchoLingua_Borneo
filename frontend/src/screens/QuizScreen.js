@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { quizzesByLanguageAndDifficulty } from '../data/mockData';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { playSound } from '../services/soundService';
 import { translateText } from '../services/translationService';
@@ -50,6 +51,7 @@ const DIFFICULTIES = [
 ];
 
 export default function QuizScreen({ navigation }) {
+  const { theme } = useTheme();
   // Selection states
   const [selectedLanguage, setSelectedLanguage] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
@@ -363,32 +365,32 @@ export default function QuizScreen({ navigation }) {
   // Language Selection Screen
   if (!selectedLanguage) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <TouchableOpacity
           onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
           style={styles.backButtonTop}
         >
-          <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Ionicons name="chevron-back" size={28} color={theme.primary} />
+          <Text style={[styles.backButtonText, { color: theme.primary }]}>Back</Text>
         </TouchableOpacity>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Choose Language</Text>
-          <Text style={styles.headerSubtitle}>Select a language to practice</Text>
+        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>Choose Language</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Select a language to practice</Text>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {LANGUAGES.map((language) => (
             <TouchableOpacity
               key={language.id}
-              style={styles.selectionCard}
+              style={[styles.selectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() => handleLanguageSelect(language)}
             >
               <Text style={styles.flagEmoji}>{language.flag}</Text>
               <View style={styles.selectionCardContent}>
-                <Text style={styles.selectionCardLabel}>{language.label}</Text>
-                <Text style={styles.selectionCardSubtitle}>{language.region}</Text>
+                <Text style={[styles.selectionCardLabel, { color: theme.text }]}>{language.label}</Text>
+                <Text style={[styles.selectionCardSubtitle, { color: theme.textSecondary }]}>{language.region}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+              <Ionicons name="chevron-forward" size={24} color={theme.primary} />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -399,28 +401,28 @@ export default function QuizScreen({ navigation }) {
   // Difficulty Selection Screen
   if (!selectedDifficulty) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <TouchableOpacity onPress={() => goBack('language')} style={styles.backButtonTop}>
-          <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Ionicons name="chevron-back" size={28} color={theme.primary} />
+          <Text style={[styles.backButtonText, { color: theme.primary }]}>Back</Text>
         </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Choose Difficulty</Text>
-          <Text style={styles.headerSubtitle}>{selectedLanguage.label}</Text>
+        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>Choose Difficulty</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>{selectedLanguage.label}</Text>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {DIFFICULTIES.map((difficulty) => (
             <TouchableOpacity
               key={difficulty.id}
-              style={[styles.selectionCard, { borderLeftColor: difficulty.color, borderLeftWidth: 4 }]}
+              style={[styles.selectionCard, { borderLeftColor: difficulty.color, borderLeftWidth: 4, backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() => handleDifficultySelect(difficulty)}
             >
               <Text style={styles.difficultyEmoji}>{difficulty.emoji}</Text>
               <View style={styles.selectionCardContent}>
-                <Text style={styles.selectionCardLabel}>{difficulty.label}</Text>
-                <Text style={styles.selectionCardSubtitle}>5 quizzes available</Text>
+                <Text style={[styles.selectionCardLabel, { color: theme.text }]}>{difficulty.label}</Text>
+                <Text style={[styles.selectionCardSubtitle, { color: theme.textSecondary }]}>5 quizzes available</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color={difficulty.color} />
             </TouchableOpacity>
@@ -433,15 +435,15 @@ export default function QuizScreen({ navigation }) {
   // Quiz Selection Screen
   if (!selectedQuiz) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <TouchableOpacity onPress={() => goBack('difficulty')} style={styles.backButtonTop}>
-          <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Ionicons name="chevron-back" size={28} color={theme.primary} />
+          <Text style={[styles.backButtonText, { color: theme.primary }]}>Back</Text>
         </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Choose Quiz</Text>
-          <Text style={styles.headerSubtitle}>
+        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>Choose Quiz</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
             {selectedLanguage.label} - {selectedDifficulty.label}
           </Text>
         </View>
@@ -455,10 +457,10 @@ export default function QuizScreen({ navigation }) {
                 onPress={() => handleQuizSelect(quizNum)}
               >
                 <View style={[styles.quizNumberCircle, { backgroundColor: selectedDifficulty.color }]}>
-                  <Text style={styles.quizNumber}>{quizNum}</Text>
+                  <Text style={[styles.quizNumber, { color: theme.surface }]}>{quizNum}</Text>
                 </View>
-                <Text style={styles.quizLabel}>Quiz {quizNum}</Text>
-                <Text style={styles.quizSubtitle}>5 questions</Text>
+                <Text style={[styles.quizLabel, { color: theme.text }]}>Quiz {quizNum}</Text>
+                <Text style={[styles.quizSubtitle, { color: theme.textSecondary }]}>5 questions</Text>
                 <Ionicons name="arrow-forward" size={20} color={selectedDifficulty.color} style={{ marginTop: 8 }} />
               </TouchableOpacity>
             ))}
@@ -474,13 +476,13 @@ export default function QuizScreen({ navigation }) {
     const perfection = percentage === 100;
 
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.resultCard}>
-          <Ionicons name={perfection ? 'trophy' : 'checkmark-circle'} size={80} color={COLORS.accent} />
-          <Text style={styles.finishTitle}>Quiz Complete!</Text>
-          <Text style={styles.finalScore}>{score} / {quizQuestions.length}</Text>
-          <Text style={styles.percentage}>{percentage}%</Text>
-          <Text style={styles.feedbackText}>
+          <Ionicons name={perfection ? 'trophy' : 'checkmark-circle'} size={80} color={theme.secondary} />
+          <Text style={[styles.finishTitle, { color: theme.text }]}>Quiz Complete!</Text>
+          <Text style={[styles.finalScore, { color: theme.primary }]}>{score} / {quizQuestions.length}</Text>
+          <Text style={[styles.percentage, { color: theme.secondary }]}>{percentage}%</Text>
+          <Text style={[styles.feedbackText, { color: theme.textSecondary }]}>
             {percentage === 100
               ? "Perfect Score! You're a master! 🎉"
               : percentage >= 80
@@ -491,21 +493,21 @@ export default function QuizScreen({ navigation }) {
           </Text>
 
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.primaryButton} onPress={restartQuiz}>
-              <Ionicons name="refresh" size={20} color={COLORS.surface} />
-              <Text style={styles.primaryButtonText}>Try Again</Text>
+            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.primary }]} onPress={restartQuiz}>
+              <Ionicons name="refresh" size={20} color={theme.background} />
+              <Text style={[styles.primaryButtonText, { color: theme.background }]}>Try Again</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.secondaryButton, { marginTop: SPACING.m }]}
+              style={[styles.secondaryButton, { marginTop: SPACING.m, backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() => goBack('quiz')}
             >
-              <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
-              <Text style={styles.secondaryButtonText}>Choose Another Quiz</Text>
+              <Ionicons name="arrow-back" size={20} color={theme.primary} />
+              <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Choose Another Quiz</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tertiaryButton, { marginTop: SPACING.m }]}
+              style={[styles.tertiaryButton, { marginTop: SPACING.m, backgroundColor: theme.secondary }]}
               onPress={() => {
                 if (navigation.canGoBack()) {
                   navigation.goBack();
@@ -514,8 +516,8 @@ export default function QuizScreen({ navigation }) {
                 }
               }}
             >
-              <Ionicons name="home" size={20} color={COLORS.surface} />
-              <Text style={styles.tertiaryButtonText}>Back to Home</Text>
+              <Ionicons name="home" size={20} color={theme.background} />
+              <Text style={[styles.tertiaryButtonText, { color: theme.background }]}>Back to Home</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -528,38 +530,38 @@ export default function QuizScreen({ navigation }) {
   const progress = ((currentQuestionIndex + 1) / quizQuestions.length) * 100;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.quizHeader}>
+      <View style={[styles.quizHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => goBack('quiz')} style={styles.backButtonSmall}>
-          <Ionicons name="close" size={24} color={COLORS.error} />
+          <Ionicons name="close" size={24} color={theme.error} />
         </TouchableOpacity>
         <View style={styles.quizInfo}>
-          <Text style={styles.quizLanguage}>{selectedLanguage.label}</Text>
-          <Text style={styles.quizDifficulty}>Quiz {selectedQuiz}</Text>
+          <Text style={[styles.quizLanguage, { color: theme.textSecondary }]}>{selectedLanguage.label}</Text>
+          <Text style={[styles.quizDifficulty, { color: theme.text }]}>Quiz {selectedQuiz}</Text>
         </View>
-        <View style={styles.scoreDisplay}>
-          <Text style={styles.scoreLabel}>Score</Text>
-          <Text style={styles.scoreValue}>{score}/{quizQuestions.length}</Text>
+        <View style={[styles.scoreDisplay, { backgroundColor: theme.primary + '20' }]}>
+          <Text style={[styles.scoreLabel, { color: theme.primary }]}>Score</Text>
+          <Text style={[styles.scoreValue, { color: theme.primary }]}>{score}/{quizQuestions.length}</Text>
         </View>
       </View>
 
       {/* Progress Bar */}
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+      <View style={[styles.progressBarContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.progressBarBg, { backgroundColor: theme.surfaceVariant }]}>
+          <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: theme.primary }]} />
         </View>
-        <Text style={styles.progressText}>Question {currentQuestionIndex + 1}/{quizQuestions.length}</Text>
+        <Text style={[styles.progressText, { color: theme.textSecondary }]}>Question {currentQuestionIndex + 1}/{quizQuestions.length}</Text>
       </View>
 
       {/* Question */}
       <ScrollView style={styles.quizContent} showsVerticalScrollIndicator={false}>
         <View style={styles.questionContainer}>
-          <Text style={styles.questionNumber}>Question {currentQuestionIndex + 1}</Text>
+          <Text style={[styles.questionNumber, { color: theme.primary }]}>Question {currentQuestionIndex + 1}</Text>
           {isLocalizingQuestion && (
-            <Text style={styles.localizingLabel}>Translating to {selectedLanguage.label}...</Text>
+            <Text style={[styles.localizingLabel, { color: theme.textSecondary }]}>Translating to {selectedLanguage.label}...</Text>
           )}
-          <Text style={styles.questionText}>{currentQuestion.question}</Text>
+          <Text style={[styles.questionText, { color: theme.text }]}>{currentQuestion.question}</Text>
         </View>
 
         {/* Options */}
@@ -574,27 +576,30 @@ export default function QuizScreen({ navigation }) {
                 key={index}
                 style={[
                   styles.optionButton,
-                  isSelected && (isCorrect ? styles.optionCorrect : styles.optionIncorrect),
-                  showResult && isCorrect && styles.optionCorrect,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                  
+                  isSelected && (isCorrect ? { borderColor: theme.success, backgroundColor: theme.success + '20' } : { borderColor: theme.error, backgroundColor: theme.error + '20' }),
+                  showResult && isCorrect && { borderColor: theme.success, backgroundColor: theme.success + '20' },
                 ]}
                 onPress={() => !selectedOption && handleAnswer(option)}
                 disabled={selectedOption !== null}
               >
                 <View style={styles.optionIndicator}>
-                  {!showResult && <View style={styles.optionCircle} />}
+                  {!showResult && <View style={[styles.optionCircle, { borderColor: theme.primary }]} />}
                   {showResult && (
                     <Ionicons
                       name={isCorrect ? 'checkmark-circle' : 'close-circle'}
                       size={24}
-                      color={isCorrect ? COLORS.success : COLORS.error}
+                      color={isCorrect ? theme.success : theme.error}
                     />
                   )}
                 </View>
                 <Text
                   style={[
                     styles.optionText,
-                    isSelected && styles.optionTextSelected,
-                    showResult && isCorrect && styles.optionTextCorrect,
+                    { color: theme.text },
+                    isSelected && { color: isCorrect ? theme.success : theme.error }, // Wait, if selected, text color depends
+                    showResult && isCorrect && { color: theme.success, fontWeight: 'bold' },
                   ]}
                 >
                   {option}

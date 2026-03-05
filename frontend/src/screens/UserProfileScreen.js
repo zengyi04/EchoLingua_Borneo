@@ -11,11 +11,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const USERS_DATABASE_KEY = '@echolingua_users_database';
 
 export default function UserProfileScreen({ navigation, route }) {
+  const { theme } = useTheme();
   const { userId, userName } = route.params || {};
   const [userStories, setUserStories] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -90,48 +92,48 @@ export default function UserProfileScreen({ navigation, route }) {
   };
 
   const renderStoryItem = ({ item }) => (
-    <TouchableOpacity style={styles.storyItem}>
+    <TouchableOpacity style={[styles.storyItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <View style={styles.storyItemContent}>
-        <Text style={styles.storyItemTitle}>{item.title}</Text>
-        <Text style={styles.storyItemDescription} numberOfLines={2}>
+        <Text style={[styles.storyItemTitle, { color: theme.text }]}>{item.title}</Text>
+        <Text style={[styles.storyItemDescription, { color: theme.text }]} numberOfLines={2}>
           {item.description}
         </Text>
         <View style={styles.storyItemMeta}>
-          <Text style={styles.storyItemMetaText}>
+          <Text style={[styles.storyItemMetaText, { color: theme.textSecondary }]}>
             {item.language} • {item.category}
           </Text>
           <View style={styles.storyItemStats}>
             <Ionicons name="heart" size={14} color="#FF4458" />
-            <Text style={styles.storyItemStatsText}>{item.likes}</Text>
-            <Ionicons name="chatbubble" size={14} color={COLORS.textSecondary} style={{ marginLeft: 8 }} />
-            <Text style={styles.storyItemStatsText}>{item.comments}</Text>
+            <Text style={[styles.storyItemStatsText, { color: theme.textSecondary }]}>{item.likes}</Text>
+            <Ionicons name="chatbubble" size={14} color={theme.textSecondary} style={{ marginLeft: 8 }} />
+            <Text style={[styles.storyItemStatsText, { color: theme.textSecondary }]}>{item.comments}</Text>
           </View>
         </View>
       </View>
       {item.audioUri && (
-        <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
+        <Ionicons name="musical-notes" size={24} color={theme.primary} />
       )}
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
+        <View style={[styles.profileHeader, { backgroundColor: theme.surfaceVariant, borderBottomColor: theme.border }]}>
+          <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '33' }]}>
             <Text style={styles.avatarEmoji}>{viewedUser?.avatar || '👤'}</Text>
           </View>
-          <Text style={styles.userName}>{viewedUser?.fullName || userName || 'Anonymous User'}</Text>
+          <Text style={[styles.userName, { color: theme.text }]}>{viewedUser?.fullName || userName || 'Anonymous User'}</Text>
           
           {/* Role Badge */}
           {viewedUser?.role && (
@@ -139,9 +141,9 @@ export default function UserProfileScreen({ navigation, route }) {
               <Ionicons 
                 name={viewedUser.role === 'elder' ? 'people' : viewedUser.role === 'admin' ? 'shield-checkmark' : 'school'} 
                 size={14} 
-                color={COLORS.surface} 
+                color={theme.surface} 
               />
-              <Text style={styles.roleBadgeText}>{viewedUser.role.toUpperCase()}</Text>
+              <Text style={[styles.roleBadgeText, { color: theme.surface }]}>{viewedUser.role.toUpperCase()}</Text>
             </View>
           )}
           
@@ -150,32 +152,32 @@ export default function UserProfileScreen({ navigation, route }) {
             <View style={styles.userInfoContainer}>
               {viewedUser.email && (
                 <View style={styles.userInfoRow}>
-                  <Ionicons name="mail" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.userInfoText}>{viewedUser.email}</Text>
+                  <Ionicons name="mail" size={16} color={theme.textSecondary} />
+                  <Text style={[styles.userInfoText, { color: theme.text }]}>{viewedUser.email}</Text>
                 </View>
               )}
               {viewedUser.community && (
                 <View style={styles.userInfoRow}>
-                  <Ionicons name="location" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.userInfoText}>{viewedUser.community}</Text>
+                  <Ionicons name="location" size={16} color={theme.textSecondary} />
+                  <Text style={[styles.userInfoText, { color: theme.text }]}>{viewedUser.community}</Text>
                 </View>
               )}
               {viewedUser.languages && (
                 <View style={styles.userInfoRow}>
-                  <Ionicons name="language" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.userInfoText}>{viewedUser.languages}</Text>
+                  <Ionicons name="language" size={16} color={theme.textSecondary} />
+                  <Text style={[styles.userInfoText, { color: theme.text }]}>{viewedUser.languages}</Text>
                 </View>
               )}
               {viewedUser.age && (
                 <View style={styles.userInfoRow}>
-                  <Ionicons name="calendar" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.userInfoText}>{viewedUser.age} years old</Text>
+                  <Ionicons name="calendar" size={16} color={theme.textSecondary} />
+                  <Text style={[styles.userInfoText, { color: theme.text }]}>{viewedUser.age} years old</Text>
                 </View>
               )}
               {viewedUser.joinedAt && (
                 <View style={styles.userInfoRow}>
-                  <Ionicons name="time" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.userInfoText}>
+                  <Ionicons name="time" size={16} color={theme.textSecondary} />
+                  <Text style={[styles.userInfoText, { color: theme.text }]}>
                     Joined {new Date(viewedUser.joinedAt).toLocaleDateString()}
                   </Text>
                 </View>
@@ -186,46 +188,46 @@ export default function UserProfileScreen({ navigation, route }) {
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{userStats.storiesCount}</Text>
-              <Text style={styles.statLabel}>Stories</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{userStats.storiesCount}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Stories</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{userStats.followers}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{userStats.followers}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Followers</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{userStats.following}</Text>
-              <Text style={styles.statLabel}>Following</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{userStats.following}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Following</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{userStats.totalLikes}</Text>
-              <Text style={styles.statLabel}>Likes</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{userStats.totalLikes}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Likes</Text>
             </View>
           </View>
 
           {/* Follow Button or Emergency Contacts Button */}
           {viewedUser?.id === currentUser?.id ? (
             <TouchableOpacity
-              style={styles.emergencyContactsButton}
+              style={[styles.emergencyContactsButton, { backgroundColor: theme.error || '#EF4444' }]}
               onPress={() => navigation.navigate('EmergencyContacts')}
             >
-              <Ionicons name="people" size={20} color={COLORS.surface} />
-              <Text style={styles.emergencyContactsButtonText}>Emergency Contacts</Text>
+              <Ionicons name="people" size={20} color={theme.surface} />
+              <Text style={[styles.emergencyContactsButtonText, { color: theme.surface }]}>Emergency Contacts</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.followButton, isFollowing && styles.followingButton]}
+              style={[styles.followButton, { backgroundColor: theme.primary }, isFollowing && { backgroundColor: 'transparent', borderColor: theme.primary, borderWidth: 1 }]}
               onPress={handleFollowToggle}
             >
               <Ionicons
                 name={isFollowing ? 'checkmark-circle' : 'add-circle'}
                 size={20}
-                color={isFollowing ? COLORS.primary : COLORS.surface}
+                color={isFollowing ? theme.primary : theme.surface}
               />
-              <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+              <Text style={[styles.followButtonText, { color: theme.surface }, isFollowing && { color: theme.primary }]}>
                 {isFollowing ? 'Following' : 'Follow'}
               </Text>
             </TouchableOpacity>
@@ -235,10 +237,10 @@ export default function UserProfileScreen({ navigation, route }) {
         {/* User's Stories Section */}
         <View style={styles.storiesSection}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="book" size={22} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Shared Stories</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{userStats.storiesCount}</Text>
+            <Ionicons name="book" size={22} color={theme.primary} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Shared Stories</Text>
+            <View style={[styles.countBadge, { backgroundColor: theme.primary }]}>
+              <Text style={[styles.countBadgeText, { color: theme.surface }]}>{userStats.storiesCount}</Text>
             </View>
           </View>
 
@@ -252,8 +254,8 @@ export default function UserProfileScreen({ navigation, route }) {
             />
           ) : (
             <View style={styles.emptyState}>
-              <FontAwesome5 name="book-open" size={48} color={COLORS.textSecondary} />
-              <Text style={styles.emptyStateText}>No stories shared yet</Text>
+              <FontAwesome5 name="book-open" size={48} color={theme.textSecondary} />
+              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>No stories shared yet</Text>
             </View>
           )}
         </View>

@@ -11,10 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function ProgressTrackerScreen({ navigation }) {
+  const { theme } = useTheme();
   const [progressData, setProgressData] = useState({
     vocabularyLearned: 0,
     totalVocabulary: 500,
@@ -230,10 +232,10 @@ export default function ProgressTrackerScreen({ navigation }) {
   const renderOverviewTab = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       {/* Level & XP Card */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.levelHeader}>
           <View>
-            <Text style={styles.levelLabel}>Current Level</Text>
+            <Text style={[styles.levelLabel, { color: theme.textSecondary }]}>Current Level</Text>
             <Text style={[styles.levelText, { color: getLevelColor(progressData.level) }]}>
               {progressData.level}
             </Text>
@@ -246,7 +248,7 @@ export default function ProgressTrackerScreen({ navigation }) {
         </View>
 
         <View style={styles.xpProgressContainer}>
-          <View style={styles.xpBar}>
+          <View style={[styles.xpBar, { backgroundColor: theme.surfaceVariant }]}>
             <View
               style={[
                 styles.xpBarFill,
@@ -257,45 +259,46 @@ export default function ProgressTrackerScreen({ navigation }) {
               ]}
             />
           </View>
-          <Text style={styles.xpText}>
+          <Text style={[styles.xpText, { color: theme.textSecondary }]}>
             {progressData.xp} / {progressData.nextLevelXP} XP
           </Text>
         </View>
       </View>
 
       {/* Daily Streak Card */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.cardHeader}>
           <Ionicons name="flame" size={24} color="#FF6B35" />
-          <Text style={styles.cardTitle}>Daily Streak</Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Daily Streak</Text>
         </View>
         <View style={styles.streakContainer}>
           <View style={styles.streakItem}>
-            <Text style={styles.streakNumber}>{progressData.dailyStreak}</Text>
-            <Text style={styles.streakLabel}>Current</Text>
+            <Text style={[styles.streakNumber, { color: theme.primary }]}>{progressData.dailyStreak}</Text>
+            <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>Current</Text>
           </View>
-          <View style={styles.streakDivider} />
+          <View style={[styles.streakDivider, { backgroundColor: theme.border }]} />
           <View style={styles.streakItem}>
-            <Text style={styles.streakNumber}>{progressData.longestStreak}</Text>
-            <Text style={styles.streakLabel}>Longest</Text>
+            <Text style={[styles.streakNumber, { color: theme.primary }]}>{progressData.longestStreak}</Text>
+            <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>Longest</Text>
           </View>
         </View>
 
         {/* Weekly Activity */}
-        <Text style={styles.sectionLabel}>This Week</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>This Week</Text>
         <View style={styles.weeklyActivityContainer}>
           {weeklyActivity.map((day) => (
             <View key={day.day} style={styles.dayContainer}>
               <View
                 style={[
                   styles.dayCircle,
-                  day.active && styles.dayCircleActive,
+                  day.active && { backgroundColor: theme.primary },
+                  !day.active && { backgroundColor: theme.surfaceVariant },
                   {
                     opacity: day.xp > 0 ? Math.min(day.xp / 150, 1) : 0.2,
                   },
                 ]}
               />
-              <Text style={styles.dayLabel}>{day.day}</Text>
+              <Text style={[styles.dayLabel, { color: theme.textSecondary }]}>{day.day}</Text>
             </View>
           ))}
         </View>
@@ -303,11 +306,11 @@ export default function ProgressTrackerScreen({ navigation }) {
 
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Ionicons name="book" size={28} color={COLORS.primary} />
-          <Text style={styles.statNumber}>{progressData.vocabularyLearned}</Text>
-          <Text style={styles.statLabel}>Words Learned</Text>
-          <View style={styles.miniProgressBar}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Ionicons name="book" size={28} color={theme.primary} />
+          <Text style={[styles.statNumber, { color: theme.text }]}>{progressData.vocabularyLearned}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Words Learned</Text>
+          <View style={[styles.miniProgressBar, { backgroundColor: theme.surfaceVariant }]}>
             <View
               style={[
                 styles.miniProgressFill,
@@ -316,43 +319,44 @@ export default function ProgressTrackerScreen({ navigation }) {
                     progressData.vocabularyLearned,
                     progressData.totalVocabulary
                   )}%`,
+                  backgroundColor: theme.primary,
                 },
               ]}
             />
           </View>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <FontAwesome5 name="clipboard-check" size={28} color="#4ECDC4" />
-          <Text style={styles.statNumber}>{progressData.quizzesTaken}</Text>
-          <Text style={styles.statLabel}>Quizzes Taken</Text>
-          <Text style={styles.statSubtext}>Avg: {progressData.quizzesScore}%</Text>
+          <Text style={[styles.statNumber, { color: theme.text }]}>{progressData.quizzesTaken}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Quizzes Taken</Text>
+          <Text style={[styles.statSubtext, { color: theme.textSecondary }]}>Avg: {progressData.quizzesScore}%</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Ionicons name="mic" size={28} color="#FF6B6B" />
-          <Text style={styles.statNumber}>{progressData.pronunciationAccuracy}%</Text>
-          <Text style={styles.statLabel}>Pronunciation</Text>
-          <Text style={styles.statSubtext}>{progressData.pronunciationAttempts} attempts</Text>
+          <Text style={[styles.statNumber, { color: theme.text }]}>{progressData.pronunciationAccuracy}%</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Pronunciation</Text>
+          <Text style={[styles.statSubtext, { color: theme.textSecondary }]}>{progressData.pronunciationAttempts} attempts</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Ionicons name="time" size={28} color="#FFD93D" />
-          <Text style={styles.statNumber}>{progressData.totalLearningTime}</Text>
-          <Text style={styles.statLabel}>Minutes</Text>
-          <Text style={styles.statSubtext}>Total time</Text>
+          <Text style={[styles.statNumber, { color: theme.text }]}>{progressData.totalLearningTime}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Minutes</Text>
+          <Text style={[styles.statSubtext, { color: theme.textSecondary }]}>Total time</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <FontAwesome5 name="book-open" size={28} color="#A8DADC" />
-          <Text style={styles.statNumber}>{progressData.storiesRead}</Text>
-          <Text style={styles.statLabel}>Stories Read</Text>
+          <Text style={[styles.statNumber, { color: theme.text }]}>{progressData.storiesRead}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Stories Read</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Ionicons name="recording" size={28} color="#F4A261" />
-          <Text style={styles.statNumber}>{progressData.recordingsMade}</Text>
-          <Text style={styles.statLabel}>Recordings</Text>
+          <Text style={[styles.statNumber, { color: theme.text }]}>{progressData.recordingsMade}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Recordings</Text>
         </View>
       </View>
     </ScrollView>
@@ -364,30 +368,30 @@ export default function ProgressTrackerScreen({ navigation }) {
         {achievements.map((achievement) => (
           <View
             key={achievement.id}
-            style={[styles.achievementCard, !achievement.unlocked && styles.achievementLocked]}
+            style={[styles.achievementCard, { backgroundColor: theme.surface, borderColor: theme.border }, !achievement.unlocked && styles.achievementLocked]}
           >
             <View
               style={[
                 styles.achievementIcon,
-                { backgroundColor: achievement.unlocked ? COLORS.primary : '#E0E0E0' },
+                { backgroundColor: achievement.unlocked ? theme.primary : theme.surfaceVariant },
               ]}
             >
               <FontAwesome5
                 name={achievement.icon}
                 size={24}
-                color={achievement.unlocked ? COLORS.surface : '#999'}
+                color={achievement.unlocked ? theme.background : theme.textSecondary}
               />
             </View>
             <View style={styles.achievementContent}>
-              <Text style={[styles.achievementTitle, !achievement.unlocked && styles.textLocked]}>
+              <Text style={[styles.achievementTitle, { color: theme.text }, !achievement.unlocked && { color: theme.textSecondary }]}>
                 {achievement.title}
               </Text>
-              <Text style={[styles.achievementDescription, !achievement.unlocked && styles.textLocked]}>
+              <Text style={[styles.achievementDescription, { color: theme.textSecondary }]}>
                 {achievement.description}
               </Text>
             </View>
             {achievement.unlocked && (
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+              <Ionicons name="checkmark-circle" size={24} color={theme.success} />
             )}
           </View>
         ))}
@@ -397,69 +401,69 @@ export default function ProgressTrackerScreen({ navigation }) {
 
   const renderStatsTab = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Detailed Statistics</Text>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Detailed Statistics</Text>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Vocabulary Progress</Text>
-          <Text style={styles.detailedStatValue}>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Vocabulary Progress</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>
             {progressData.vocabularyLearned} / {progressData.totalVocabulary}
           </Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Average Quiz Score</Text>
-          <Text style={styles.detailedStatValue}>{progressData.quizzesScore}%</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Average Quiz Score</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.quizzesScore}%</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Pronunciation Accuracy</Text>
-          <Text style={styles.detailedStatValue}>{progressData.pronunciationAccuracy}%</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Pronunciation Accuracy</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.pronunciationAccuracy}%</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Current Streak</Text>
-          <Text style={styles.detailedStatValue}>{progressData.dailyStreak} days</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Current Streak</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.dailyStreak} days</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Longest Streak</Text>
-          <Text style={styles.detailedStatValue}>{progressData.longestStreak} days</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Longest Streak</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.longestStreak} days</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Total Learning Time</Text>
-          <Text style={styles.detailedStatValue}>{progressData.totalLearningTime} min</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Total Learning Time</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.totalLearningTime} min</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Stories Read</Text>
-          <Text style={styles.detailedStatValue}>{progressData.storiesRead}</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Stories Read</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.storiesRead}</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Recordings Made</Text>
-          <Text style={styles.detailedStatValue}>{progressData.recordingsMade}</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Recordings Made</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.recordingsMade}</Text>
         </View>
 
-        <View style={styles.detailedStatRow}>
-          <Text style={styles.detailedStatLabel}>Total XP</Text>
-          <Text style={styles.detailedStatValue}>{progressData.xp}</Text>
+        <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Total XP</Text>
+          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.xp}</Text>
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Learning Insights</Text>
-        <Text style={styles.insightText}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Learning Insights</Text>
+        <Text style={[styles.insightText, { color: theme.text }]}>
           🎯 You're doing great! Keep up your {progressData.dailyStreak}-day streak!
         </Text>
-        <Text style={styles.insightText}>
+        <Text style={[styles.insightText, { color: theme.text }]}>
           📚 You've learned {getProgressPercentage(progressData.vocabularyLearned, progressData.totalVocabulary)}% of available vocabulary.
         </Text>
-        <Text style={styles.insightText}>
+        <Text style={[styles.insightText, { color: theme.text }]}>
           🎤 Your pronunciation accuracy is {progressData.pronunciationAccuracy}%. Keep practicing!
         </Text>
-        <Text style={styles.insightText}>
+        <Text style={[styles.insightText, { color: theme.text }]}>
           🏆 {achievements.filter((a) => a.unlocked).length} out of {achievements.length} achievements unlocked!
         </Text>
       </View>
@@ -467,9 +471,9 @@ export default function ProgressTrackerScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => {
             if (navigation.canGoBack()) {
@@ -479,11 +483,11 @@ export default function ProgressTrackerScreen({ navigation }) {
             }
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Progress</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>My Progress</Text>
         <TouchableOpacity onPress={() => loadProgressData()}>
-          <Ionicons name="refresh" size={24} color={COLORS.primary} />
+          <Ionicons name="refresh" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -496,15 +500,19 @@ export default function ProgressTrackerScreen({ navigation }) {
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
-            style={[styles.tab, selectedTab === tab.key && styles.activeTab]}
+            style={[
+              styles.tab, 
+              { backgroundColor: theme.surface },
+              selectedTab === tab.key && { backgroundColor: theme.primary }
+            ]}
             onPress={() => setSelectedTab(tab.key)}
           >
             <Ionicons
               name={tab.icon}
               size={20}
-              color={selectedTab === tab.key ? COLORS.surface : COLORS.textSecondary}
+              color={selectedTab === tab.key ? theme.background : theme.textSecondary}
             />
-            <Text style={[styles.tabText, selectedTab === tab.key && styles.activeTabText]}>
+            <Text style={[styles.tabText, { color: theme.textSecondary }, selectedTab === tab.key && { color: theme.background }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
