@@ -39,6 +39,9 @@
     },
     "web": {
       "favicon": "./assets/appLogo.png"
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

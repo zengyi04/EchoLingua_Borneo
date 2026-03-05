@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -102,8 +103,12 @@ export default function LoginScreen({ navigation }) {
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={[styles.logoContainer, { backgroundColor: theme.primary + '20' }]}>
-              <Ionicons name="language" size={64} color={theme.primary} />
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/appLogo.png')}
+                style={styles.appLogo}
+                resizeMode="contain"
+              />
             </View>
             <Text style={[styles.title, { color: theme.text }]}>EchoLingua</Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Preserving Indigenous Languages</Text>
@@ -226,6 +231,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
     borderWidth: 2,
     borderColor: COLORS.primary,
+  },
+  appLogo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
   },
   title: {
     fontSize: 32,
