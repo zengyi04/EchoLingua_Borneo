@@ -704,21 +704,22 @@ export default function CommunityStoryScreen({ navigation }) {
     // Check if the story is posted by the current user
     // More robust checking with multiple conditions
     const isMe = Boolean(
-      currentUser && item.userId && (
+      currentUser && (
         // Direct ID match (convert both to strings for comparison)
-        String(item.userId) === String(currentUser.id) ||
+        (item.userId && String(item.userId) === String(currentUser.id)) ||
         // Check if it's marked as current_user
         item.userId === 'current_user' ||
         // Check if current user ID is 'current_user' and story userId matches
-        (currentUser.id === 'current_user' && item.userId === 'current_user')
+        (currentUser.id === 'current_user' && item.userId === 'current_user') ||
+        // Fallback: check author name matches current user name or display name
+        (item.author && (
+          item.author === 'You' ||
+          item.author === currentUser.fullName ||
+          item.author === currentUser.name
+        ))
       )
     );
   
-    // Debug log (remove this after confirming it works)
-    if (__DEV__) {
-      console.log(`Story: ${item.title}, isMe: ${isMe}, item.userId: ${item.userId}, currentUser.id: ${currentUser?.id}`);
-    }
-    
     return (
       <View 
         style={[
