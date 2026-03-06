@@ -6,91 +6,48 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  FlatList,
   Linking,
   Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as Speech from 'expo-speech';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-const WORLD_SEARCH_API = 'https://nominatim.openstreetmap.org/search';
+// Google Maps APIs
+const GOOGLE_DIRECTIONS_API = 'https://maps.googleapis.com/maps/api/directions/json';
+const GOOGLE_PLACES_API = 'https://maps.googleapis.com/maps/api/place/textsearch/json';
+const USER_STORAGE_KEY = '@echolingua_current_user';
 
-// Cultural and language learning locations in Borneo
-const CULTURAL_LOCATIONS = [
-  {
-    id: 'sarawak-cultural-village',
-    name: 'Sarawak Cultural Village',
-    description: 'Experience authentic Iban, Bidayuh, and other indigenous cultures',
-    latitude: 1.7429,
-    longitude: 110.2927,
-    type: 'Cultural Center',
-    languages: ['Iban', 'Bidayuh', 'Malay'],
-    icon: 'home',
-    color: '#4CAF50',
-  },
-  {
-    id: 'kuching-waterfront',
-    name: 'Kuching Waterfront',
-    description: 'Historic waterfront with local markets and cultural events',
-    latitude: 1.5596,
-    longitude: 110.3467,
-    type: 'Market',
-    languages: ['Malay', 'Chinese', 'Iban'],
-    icon: 'storefront',
-    color: '#FF9800',
-  },
-  {
-    id: 'sabah-museum',
-    name: 'Sabah State Museum',
-    description: 'Learn about Kadazan-Dusun and Murut heritage',
-    latitude: 5.9805,
-    longitude: 116.0989,
-    type: 'Museum',
-    languages: ['Kadazan', 'Murut', 'Malay'],
-    icon: 'library',
-    color: '#9C27B0',
-  },
-  {
-    id: 'kota-kinabalu-market',
-    name: 'Gaya Street Sunday Market',
-    description: 'Traditional market with local vendors and street food',
-    latitude: 5.9738,
-    longitude: 116.0718,
-    type: 'Market',
-    languages: ['Kadazan', 'Chinese', 'Malay'],
-    icon: 'basket',
-    color: '#FF5722',
-  },
-  {
-    id: 'longhouse-visit',
-    name: 'Iban Longhouse Skrang River',
-    description: 'Authentic Iban longhouse experience',
-    latitude: 1.3382,
-    longitude: 111.4645,
-    type: 'Cultural Center',
-    languages: ['Iban'],
-    icon: 'home-outline',
-    color: '#4CAF50',
-  },
-  {
-    id: 'tamu-donggongon',
-    name: 'Tamu Donggongon',
-    description: 'Weekly traditional market - practice Kadazan language',
-    latitude: 5.8936,
-    longitude: 116.1042,
-    type: 'Market',
-    languages: ['Kadazan', 'Malay'],
-    icon: 'storefront',
-    color: '#FF9800',
-  },
-];
+// Map language IDs to expo-speech language codes
+const getLanguageCode = (languageLabel) => {
+  const languageMap = {
+    'English': 'en',
+    'Malay': 'ms',
+    'Indonesian': 'id',
+    'Spanish': 'es',
+    'French': 'fr',
+    'Mandarin Chinese': 'zh-CN',
+    'Japanese': 'ja',
+    'Korean': 'ko',
+    'German': 'de',
+    'Italian': 'it',
+    'Portuguese': 'pt',
+    'Russian': 'ru',
+    'Thai': 'th',
+    'Vietnamese': 'vi',
+  };
+  return languageMap[languageLabel] || 'en'
+};
 
 export default function MapScreen({ navigation }) {
   const { theme } = useTheme();
@@ -103,13 +60,20 @@ export default function MapScreen({ navigation }) {
   const [userLocation, setUserLocation] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredLocations, setFilteredLocations] = useState(CULTURAL_LOCATIONS);
   const [destination, setDestination] = useState(null);
   const [searchingDestination, setSearchingDestination] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [allSearchResults, setAllSearchResults] = useState([]);
+  const [directions, setDirections] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [userLanguage, setUserLanguage] = useState('English');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const mapRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
   // Calculate distance between two coordinates (Haversine formula)
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -131,11 +95,127 @@ export default function MapScreen({ navigation }) {
 
   useEffect(() => {
     requestLocationPermission();
+    loadUserLanguagePreference();
   }, []);
 
+  // Autoplay sound when directions are loaded for selected location
   useEffect(() => {
-    filterLocations(searchQuery);
-  }, [searchQuery]);
+    if (selectedLocation && directions && !isSpeaking) {
+      // Delay slightly to ensure directions are fully rendered
+      const autoplayTimer = setTimeout(() => {
+        autoplayLocationDetails();
+      }, 500);
+      return () => clearTimeout(autoplayTimer);
+    }
+  }, [selectedLocation, directions]);
+
+  const loadUserLanguagePreference = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (userData) {
+        const user = JSON.parse(userData);
+        const languages = Array.isArray(user.languages) ? user.languages : [];
+        if (languages.length > 0) {
+          setUserLanguage(languages[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user language preference:', error);
+    }
+  };
+
+  const speakLocationDetails = async (location, distance, duration) => {
+    try {
+      if (isSpeaking) {
+        // If currently speaking, pause it
+        if (!isPaused) {
+          await Speech.pause();
+          setIsPaused(true);
+        }
+        return;
+      }
+
+      const languageCode = getLanguageCode(userLanguage);
+      const details = `Location: ${location.name}. ${location.description}. Distance: ${distance} kilometers. Estimated time: ${duration}.`;
+      
+      setIsSpeaking(true);
+      setIsPaused(false);
+      await Speech.speak(details, {
+        language: languageCode,
+        pitch: 1.0,
+        rate: 0.9,
+        onDone: () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+        },
+        onError: (error) => {
+          console.error('Speech error:', error);
+          setIsSpeaking(false);
+          setIsPaused(false);
+        },
+      });
+    } catch (error) {
+      console.error('Error speaking location details:', error);
+      setIsSpeaking(false);
+      setIsPaused(false);
+    }
+  };
+
+  const resumeLocationDetails = async () => {
+    try {
+      if (isPaused) {
+        await Speech.resume();
+        setIsPaused(false);
+      }
+    } catch (error) {
+      console.error('Error resuming speech:', error);
+    }
+  };
+
+  const stopLocationDetails = async () => {
+    try {
+      await Speech.stop();
+      setIsSpeaking(false);
+      setIsPaused(false);
+    } catch (error) {
+      console.error('Error stopping speech:', error);
+    }
+  };
+
+  const autoplayLocationDetails = async () => {
+    if (!selectedLocation || !directions || isSpeaking) return;
+    await speakLocationDetails(selectedLocation, directions.distance, directions.duration);
+  };
+
+  // Debounced search function
+  const handleSearchQueryChange = (text) => {
+    setSearchQuery(text);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If text is empty, hide results
+    if (!text.trim()) {
+      setShowSearchResults(false);
+      setSearchResults([]);
+      setAllSearchResults([]);
+      return;
+    }
+
+    // Debounce search for 600ms
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(text);
+    }, 600);
+  };
+
+  const performSearch = async () => {
+    if (!searchQuery.trim() || !userLocation) {
+      return;
+    }
+    await searchPlacesWithGoogle();
+  };
 
   const requestLocationPermission = async () => {
     try {
@@ -165,123 +245,168 @@ export default function MapScreen({ navigation }) {
     }
   };
 
-  const filterLocations = (query) => {
-    if (!query.trim()) {
-      setFilteredLocations(sortLocationsByDistance(CULTURAL_LOCATIONS));
-      setSearchResults([]);
-      setShowSearchResults(false);
+  // Helper function to calculate distance between coordinates
+
+  const searchWorldDestination = async () => {
+    if (!searchQuery.trim() || !userLocation) {
+      Alert.alert('Error', 'Please enable location and enter a search term');
       return;
     }
 
-    // Normalize query: trim, lowercase, remove extra spaces
-    const normalizedQuery = query.trim().toLowerCase().replace(/\s+/g, ' ');
-    
-    // Split query into individual words for better matching
-    const queryWords = normalizedQuery.split(' ');
-    
-    const filtered = CULTURAL_LOCATIONS.filter((loc) => {
-      // Normalize all searchable fields
-      const searchableText = [
-        loc.name,
-        loc.description,
-        loc.type,
-        ...loc.languages
-      ].join(' ').toLowerCase();
-      
-      // Check if ANY query word matches ANY part of the searchable text
-      return queryWords.some(word => searchableText.includes(word));
-    });
-    
-    const sortedFiltered = sortLocationsByDistance(filtered);
-    setFilteredLocations(sortedFiltered);
-    setSearchResults(sortedFiltered);
-    setShowSearchResults(true);
+    await searchPlacesWithGoogle();
   };
 
-  const sortLocationsByDistance = (locations) => {
-    if (!userLocation) return locations;
+  // Search places worldwide using Google Places API
+  const searchPlacesWithGoogle = async () => {
+    if (!searchQuery.trim() || !userLocation) {
+      return;
+    }
+
+    try {
+      setSearchingDestination(true);
+      
+      // Use Google Places API Text Search
+      const encoded = encodeURIComponent(searchQuery.trim());
+      const url = `${GOOGLE_PLACES_API}?query=${encoded}&key=${GOOGLE_MAPS_API_KEY}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        // Convert Google Places results to our format
+        const googleResults = data.results.map((result, idx) => ({
+          id: `place-${result.place_id}-${idx}`,
+          name: result.name,
+          description: result.formatted_address,
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng,
+          type: result.types?.[0] || 'Location',
+          languages: ['Global'],
+          icon: 'location',
+          color: '#1976D2',
+          placeId: result.place_id,
+        }));
+
+        // Calculate distances and sort by distance (nearest first)
+        const resultsWithDistance = googleResults.map(location => ({
+          ...location,
+          distance: calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            location.latitude,
+            location.longitude
+          )
+        })).sort((a, b) => a.distance - b.distance);
+
+        setAllSearchResults(resultsWithDistance);
+        setSearchResults(resultsWithDistance.slice(0, 20));
+        setShowSearchResults(true);
+      } else {
+        Alert.alert('No Results', 'Could not find any matching places. Try a different search term.');
+        setSearchResults([]);
+        setAllSearchResults([]);
+        setShowSearchResults(false);
+      }
+    } catch (error) {
+      console.error('Google Places search error:', error);
+      Alert.alert('Search Error', 'Unable to search places. Please try again.');
+    } finally {
+      setSearchingDestination(false);
+    }
+  };
+
+  // Load more results when user scrolls to bottom
+  const loadMoreResults = () => {
+    if (loadingMore || searchResults.length >= allSearchResults.length) {
+      return;
+    }
+
+    setLoadingMore(true);
+    setTimeout(() => {
+      const nextIndex = searchResults.length;
+      const moreResults = allSearchResults.slice(nextIndex, nextIndex + 10);
+      setSearchResults([...searchResults, ...moreResults]);
+      setLoadingMore(false);
+    }, 300);
+  };
+
+  // Fetch directions from current location to destination
+  const fetchDirections = async (dest) => {
+    if (!userLocation || !dest) {
+      return;
+    }
+
+    try {
+      const origin = `${userLocation.latitude},${userLocation.longitude}`;
+      const destination = `${dest.latitude},${dest.longitude}`;
+      
+      const url = `${GOOGLE_DIRECTIONS_API}?origin=${origin}&destination=${destination}&key=${GOOGLE_MAPS_API_KEY}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        const leg = route.legs[0];
+        
+        setDirections({
+          distance: leg.distance.text,
+          duration: leg.duration.text,
+          steps: leg.steps,
+        });
+
+        // Decode polyline to get route coordinates
+        const points = decodePolyline(route.overview_polyline.points);
+        setRouteCoordinates(points);
+      }
+    } catch (error) {
+      console.error('Directions fetch error:', error);
+    }
+  };
+
+  // Decode polyline from Google Directions API
+  const decodePolyline = (encoded) => {
+    let points = [];
+    let index = 0, lat = 0, lng = 0;
+    let changes = 0;
     
-    return [...locations].sort((a, b) => {
-      const distA = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        a.latitude,
-        a.longitude
-      );
-      const distB = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        b.latitude,
-        b.longitude
-      );
-      return distA - distB;
-    });
+    while (index < encoded.length) {
+      let llat = 0;
+      for (let shift = 0; ; shift += 5) {
+        let byte = encoded.charCodeAt(index++) - 63;
+        llat |= (byte & 0x1f) << shift;
+        if (byte < 0x20) break;
+      }
+      let dlat = ((llat & 1) ? ~(llat >> 1) : (llat >> 1));
+      lat += dlat;
+      
+      let llon = 0;
+      for (let shift = 0; ; shift += 5) {
+        let byte = encoded.charCodeAt(index++) - 63;
+        llon |= (byte & 0x1f) << shift;
+        if (byte < 0x20) break;
+      }
+      let dlng = ((llon & 1) ? ~(llon >> 1) : (llon >> 1));
+      lng += dlng;
+      
+      points.push({
+        latitude: lat / 1e5,
+        longitude: lng / 1e5
+      });
+    }
+    return points;
   };
 
   const handleMarkerPress = (location) => {
     setDestination(location);
     setSelectedLocation(location);
+    fetchDirections(location);
     mapRef.current?.animateToRegion({
       latitude: location.latitude,
       longitude: location.longitude,
       latitudeDelta: 0.05,
       longitudeDelta: 0.05,
     });
-  };
-
-  const searchWorldDestination = async () => {
-    if (!searchQuery.trim()) {
-      return;
-    }
-
-    try {
-      setSearchingDestination(true);
-      const encoded = encodeURIComponent(searchQuery.trim());
-      const url = `${WORLD_SEARCH_API}?q=${encoded}&format=json&limit=1`;
-      const response = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'EchoLinguaBorneo/1.0 (learning-app)',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to search destination.');
-      }
-
-      const results = await response.json();
-      if (!Array.isArray(results) || results.length === 0) {
-        Alert.alert('No Results', 'Could not find that place. Try a more specific destination.');
-        return;
-      }
-
-      const top = results[0];
-      const worldDestination = {
-        id: `world-${Date.now()}`,
-        name: top.display_name.split(',')[0] || searchQuery.trim(),
-        description: top.display_name,
-        latitude: parseFloat(top.lat),
-        longitude: parseFloat(top.lon),
-        type: 'World Destination',
-        languages: ['Global'],
-        icon: 'pin',
-        color: '#1976D2',
-      };
-
-      setDestination(worldDestination);
-      setSelectedLocation(worldDestination);
-      mapRef.current?.animateToRegion({
-        latitude: worldDestination.latitude,
-        longitude: worldDestination.longitude,
-        latitudeDelta: 0.08,
-        longitudeDelta: 0.08,
-      });
-    } catch (error) {
-      console.error('World destination search failed:', error);
-      Alert.alert('Search Error', 'Unable to find destination right now. Please try again.');
-    } finally {
-      setSearchingDestination(false);
-    }
   };
 
   const openInWaze = (location) => {
@@ -354,8 +479,10 @@ export default function MapScreen({ navigation }) {
   };
 
   const renderLocationCard = (location) => {
-    let distance = null;
-    if (userLocation) {
+    // Use the pre-calculated distance if available (from search results)
+    // Otherwise calculate it
+    let distance = location.distance;
+    if (distance === undefined && userLocation) {
       distance = calculateDistance(
         userLocation.latitude,
         userLocation.longitude,
@@ -366,7 +493,6 @@ export default function MapScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        key={location.id}
         style={[
           styles.locationCard, 
           { 
@@ -382,7 +508,15 @@ export default function MapScreen({ navigation }) {
         ]}
         onPress={() => {
           handleMarkerPress(location);
+          setDestination(location);
           setShowSearchResults(false);
+          // Animate map to show the selected location
+          mapRef.current?.animateToRegion({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            latitudeDelta: 0.08,
+            longitudeDelta: 0.08,
+          });
         }}
         activeOpacity={0.7}
       >
@@ -392,7 +526,7 @@ export default function MapScreen({ navigation }) {
         <View style={styles.locationInfo}>
           <View style={styles.locationNameRow}>
             <Text style={[styles.locationName, { color: theme.text }]}>{location.name}</Text>
-            {distance !== null && (
+            {distance !== undefined && distance !== null && (
               <Text style={[styles.distanceText, { color: theme.textSecondary }]}>{distance.toFixed(1)} km</Text>
             )}
           </View>
@@ -454,11 +588,10 @@ export default function MapScreen({ navigation }) {
           <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
-            placeholder="Search locations near you..."
+            placeholder="Search places worldwide..."
             placeholderTextColor={theme.textSecondary}
             value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={searchWorldDestination}
+            onChangeText={handleSearchQueryChange}
             onFocus={() => searchQuery && setShowSearchResults(true)}
           />
           <TouchableOpacity onPress={searchWorldDestination} disabled={searchingDestination}>
@@ -480,19 +613,42 @@ export default function MapScreen({ navigation }) {
 
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <View style={[styles.searchResultsDropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View 
+            style={[styles.searchResultsDropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            pointerEvents="auto"
+          >
             <View style={[styles.searchResultsHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.searchResultsTitle, { color: theme.text }]}>
-                {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}{allSearchResults.length > searchResults.length ? ` of ${allSearchResults.length}` : ''}
               </Text>
-              <Text style={[styles.searchResultsSubtitle, { color: theme.textSecondary }]}>Sorted by distance</Text>
+              <Text style={[styles.searchResultsSubtitle, { color: theme.textSecondary }]}>Sorted by distance • Scroll to see more</Text>
             </View>
-            <ScrollView 
+            <FlatList
               style={styles.searchResultsList}
-              showsVerticalScrollIndicator={false}
-            >
-              {searchResults.map((location) => renderLocationCard(location))}
-            </ScrollView>
+              data={searchResults}
+              renderItem={({ item }) => renderLocationCard(item)}
+              keyExtractor={(item, index) => item.id || index.toString()}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              scrollEventThrottle={16}
+              onEndReached={loadMoreResults}
+              onEndReachedThreshold={0.3}
+              ListFooterComponent={
+                <View style={{ padding: SPACING.l, alignItems: 'center' }}>
+                  {loadingMore ? (
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  ) : (
+                    <Text style={[styles.endOfResultsText, { color: theme.textSecondary }]}>
+                      {searchResults.length === allSearchResults.length
+                        ? `All ${allSearchResults.length} places loaded`
+                        : `Showing ${searchResults.length} of ${allSearchResults.length} places`
+                      }
+                    </Text>
+                  )}
+                </View>
+              }
+            />
           </View>
         )}
       </View>
@@ -506,20 +662,8 @@ export default function MapScreen({ navigation }) {
         showsUserLocation={true}
         showsMyLocationButton={false}
       >
-        {filteredLocations.map((location) => (
-          <Marker
-            key={location.id}
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            title={location.name}
-            description={location.description}
-            onPress={() => handleMarkerPress(location)}
-            pinColor={location.color}
-          />
-        ))}
-        {destination && !filteredLocations.some((item) => item.id === destination.id) && (
+        {/* Show destination marker */}
+        {destination && (
           <Marker
             key={destination.id}
             coordinate={{
@@ -530,6 +674,15 @@ export default function MapScreen({ navigation }) {
             description={destination.description}
             onPress={() => handleMarkerPress(destination)}
             pinColor={destination.color}
+          />
+        )}
+        
+        {/* Show route polyline from current location to destination */}
+        {routeCoordinates && routeCoordinates.length > 0 && (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeColor="#4CAF50"
+            strokeWidth={4}
           />
         )}
       </MapView>
@@ -550,14 +703,85 @@ export default function MapScreen({ navigation }) {
           <Text style={[styles.detailType, { color: theme.primary }]}>{selectedLocation.type}</Text>
           <Text style={[styles.detailDescription, { color: theme.textSecondary }]}>{selectedLocation.description}</Text>
 
+          {/* Show directions info from Google Directions API */}
+          {directions && (
+            <View style={[styles.directionsBox, { backgroundColor: theme.glassMedium, borderColor: theme.primary }]}>
+              <View style={styles.directionsRow}>
+                <Ionicons name="navigate" size={20} color={theme.primary} />
+                <Text style={[styles.directionsText, { color: theme.text }]}>
+                  {directions.distance}
+                </Text>
+              </View>
+              <View style={styles.directionsRow}>
+                <Ionicons name="time" size={20} color={theme.secondary} />
+                <Text style={[styles.directionsText, { color: theme.text }]}>
+                  {directions.duration}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Autoplay speaking indicator with pause/resume/stop controls */}
+          {directions && (
+            <View style={[styles.speakContainer, { backgroundColor: theme.primary }]}>
+              <View style={styles.speakStatusRow}>
+                {isSpeaking && !isPaused ? (
+                  <>
+                    <View style={styles.speakingIndicator}>
+                      <View style={[styles.speakingDot, { backgroundColor: theme.surface }]} />
+                      <Text style={[styles.speakingText, { color: theme.surface }]}>Now Reading...</Text>
+                    </View>
+                    <View style={styles.speakControlButtons}>
+                      <TouchableOpacity
+                        onPress={() => speakLocationDetails(selectedLocation, directions.distance, directions.duration)}
+                        style={styles.pauseButton}
+                      >
+                        <Ionicons name="pause-circle" size={24} color={theme.surface} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={stopLocationDetails}
+                        style={styles.stopButton}
+                      >
+                        <Ionicons name="stop-circle" size={24} color={theme.surface} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : isPaused ? (
+                  <>
+                    <View style={styles.speakingIndicator}>
+                      <View style={[styles.speakingDot, { backgroundColor: theme.surface, opacity: 0.6 }]} />
+                      <Text style={[styles.speakingText, { color: theme.surface }]}>Paused</Text>
+                    </View>
+                    <View style={styles.speakControlButtons}>
+                      <TouchableOpacity
+                        onPress={resumeLocationDetails}
+                        style={styles.pauseButton}
+                      >
+                        <Ionicons name="play-circle" size={24} color={theme.surface} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={stopLocationDetails}
+                        style={styles.stopButton}
+                      >
+                        <Ionicons name="stop-circle" size={24} color={theme.surface} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={[styles.readyToPlayText, { color: theme.surface }]}>
+                    📢 Information will be read aloud...
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+
           <View style={styles.languageList}>
-            <Text style={[styles.languageListTitle, { color: theme.text }]}>Languages:</Text>
+            <Text style={[styles.languageListTitle, { color: theme.text }]}>Location:</Text>
             <View style={styles.languageTagsContainer}>
-              {selectedLocation.languages.map((lang, idx) => (
-                <View key={idx} style={[styles.languageTag, styles.languageTagLarge, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
-                  <Text style={[styles.languageTagText, { color: theme.text }]}>{lang}</Text>
-                </View>
-              ))}
+              <View style={[styles.languageTag, styles.languageTagLarge, { backgroundColor: theme.glassMedium, borderColor: theme.border }]}>
+                <Text style={[styles.languageTagText, { color: theme.text }]}>{selectedLocation.type}</Text>
+              </View>
             </View>
           </View>
 
@@ -578,27 +802,6 @@ export default function MapScreen({ navigation }) {
               <Text style={styles.navButtonText}>Google Maps</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      {/* Locations List */}
-      {!selectedLocation && (
-        <View style={[styles.locationsList, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
-          <View style={styles.locationsHeader}>
-            <Text style={[styles.locationsTitle, { color: theme.text }]}>
-              {filteredLocations.length} {filteredLocations.length === 1 ? 'Place' : 'Places'}
-            </Text>
-            {searchQuery && (
-              <Text style={[styles.searchResults, { color: theme.textSecondary }]}>for "{searchQuery}"</Text>
-            )}
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.locationsScrollContent}
-          >
-            {filteredLocations.map((location) => renderLocationCard(location))}
-          </ScrollView>
         </View>
       )}
     </SafeAreaView>
@@ -672,7 +875,7 @@ const styles = StyleSheet.create({
     right: SPACING.m,
     backgroundColor: COLORS.surface,
     borderRadius: SPACING.m,
-    maxHeight: 400,
+    maxHeight: 550,
     ...SHADOWS.large,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -695,7 +898,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   searchResultsList: {
-    maxHeight: 340,
+    maxHeight: 500,
   },
   searchIcon: {
     marginRight: SPACING.s,
@@ -869,5 +1072,94 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.surface,
+  },
+  endOfResultsText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  directionsBox: {
+    marginVertical: SPACING.m,
+    padding: SPACING.m,
+    borderRadius: SPACING.m,
+    borderLeftWidth: 4,
+    backgroundColor: COLORS.glassMedium,
+  },
+  directionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.xs,
+  },
+  directionsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: SPACING.m,
+    color: COLORS.text,
+  },
+  speakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.m,
+    marginVertical: SPACING.m,
+    borderRadius: SPACING.m,
+    gap: SPACING.s,
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.small,
+  },
+  speakButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.surface,
+  },
+  speakContainer: {
+    marginVertical: SPACING.m,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    borderRadius: SPACING.m,
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.small,
+  },
+  speakStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  speakingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.m,
+  },
+  speakingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.surface,
+    opacity: 0.9,
+  },
+  speakingText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.surface,
+  },
+  readyToPlayText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.surface,
+    textAlign: 'center',
+    flex: 1,
+  },
+  speakControlButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+  },
+  pauseButton: {
+    padding: SPACING.xs,
+  },
+  stopButton: {
+    padding: SPACING.xs,
   },
 });

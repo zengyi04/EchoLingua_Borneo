@@ -675,25 +675,25 @@ export default function ProfileScreen() {
               <View style={{ width: 28 }} />
             </View>
             <ScrollView style={styles.modalContent}>
-              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('tel:0169515429')}>
+              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('tel:+601234567890')}>
                 <Ionicons name="call" size={20} color={theme.secondary} />
-                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>Phone</Text><Text style={[styles.contactValue, { color: theme.text }]}>0169515429</Text></View>
+                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>Phone</Text><Text style={[styles.contactValue, { color: theme.text }]}>+601234567890</Text></View>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('https://wa.me/60169515429')}>
+              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('https://wa.me/601234567890')}>
                 <FontAwesome5 name="whatsapp" size={20} color="#25D366" />
-                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>WhatsApp</Text><Text style={[styles.contactValue, { color: theme.text }]}>0169515429</Text></View>
+                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>WhatsApp</Text><Text style={[styles.contactValue, { color: theme.text }]}>+601234567890</Text></View>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('mailto:zengyiham@gmail.com')}>
+              <TouchableOpacity style={[styles.contactItem, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]} onPress={() => Linking.openURL('mailto:support@echolingua.com')}>
                 <Ionicons name="mail" size={20} color={theme.accent} />
-                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>Email</Text><Text style={[styles.contactValue, { color: theme.text }]}>zengyiham@gmail.com</Text></View>
+                <View style={styles.contactTextWrap}><Text style={[styles.contactLabel, { color: theme.textSecondary }]}>Email</Text><Text style={[styles.contactValue, { color: theme.text }]}>support@echolingua.com</Text></View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.reportButton, { backgroundColor: theme.error }]}
                 onPress={() =>
                   Alert.alert('Report a Bug', 'Choose channel', [
-                    { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/60169515429?text=Bug%20Report%20for%20EchoLingua%3A%20') },
-                    { text: 'Email', onPress: () => Linking.openURL('mailto:zengyiham@gmail.com?subject=Bug Report') },
+                    { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/601234567890?text=Bug%20Report%20for%20EchoLingua%3A%20') },
+                    { text: 'Email', onPress: () => Linking.openURL('mailto:support@echolingua.com?subject=Bug Report') },
                     { text: 'Cancel', style: 'cancel' },
                   ])
                 }
@@ -706,8 +706,8 @@ export default function ProfileScreen() {
                 style={[styles.reportButton, { backgroundColor: theme.accent }]}
                 onPress={() =>
                   Alert.alert('Suggest Improvement', 'Choose channel', [
-                    { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/60169515429?text=Improvement%20Suggestion%20for%20EchoLingua%3A%20') },
-                    { text: 'Email', onPress: () => Linking.openURL('mailto:zengyiham@gmail.com?subject=EchoLingua Improvement Suggestion') },
+                    { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/601234567890?text=Improvement%20Suggestion%20for%20EchoLingua%3A%20') },
+                    { text: 'Email', onPress: () => Linking.openURL('mailto:support@echolingua.com?subject=EchoLingua Improvement Suggestion') },
                     { text: 'Cancel', style: 'cancel' },
                   ])
                 }
