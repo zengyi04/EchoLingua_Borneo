@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert } from 'react-native';
 import { Audio } from 'expo-av'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AntDesign, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
 import { playSound } from '../services/soundService';
@@ -308,6 +309,42 @@ export default function VocabularyCard({
     }
   };
 
+  // Save pronunciation attempt to AsyncStorage
+  const savePronunciationAttempt = async (word, score, language) => {
+    try {
+      // Get current user
+      const userStr = await AsyncStorage.getItem('@echolingua_current_user');
+      if (!userStr) {
+        console.log('⚠️ No user logged in, skipping pronunciation save');
+        return;
+      }
+      const currentUser = JSON.parse(userStr);
+
+      // Load existing pronunciation attempts
+      const attemptsStr = await AsyncStorage.getItem('@echolingua_pronunciation_attempts');
+      const attempts = attemptsStr ? JSON.parse(attemptsStr) : [];
+
+      // Create new attempt
+      const newAttempt = {
+        id: Date.now().toString(),
+        userId: currentUser.id,
+        word: word,
+        language: language || 'Unknown',
+        accuracy: score,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Add to attempts array
+      attempts.push(newAttempt);
+
+      // Save back to AsyncStorage
+      await AsyncStorage.setItem('@echolingua_pronunciation_attempts', JSON.stringify(attempts));
+      console.log('✅ Pronunciation attempt saved:', newAttempt);
+    } catch (error) {
+      console.error('❌ Failed to save pronunciation attempt:', error);
+    }
+  };
+
   // Check accuracy - this ONLY runs after successful recording
   const checkAccuracy = async (word, uri) => {
     try {
@@ -359,6 +396,13 @@ export default function VocabularyCard({
           await playSound('incorrect');
           console.log('📖 Keep practicing');
         }
+
+        // Save pronunciation attempt to AsyncStorage
+        await savePronunciationAttempt(
+          displayWord.original,
+          Math.round(score),
+          fromLanguage?.label || 'Unknown'
+        );
 
         setAccuracy({
           score: Math.round(score),

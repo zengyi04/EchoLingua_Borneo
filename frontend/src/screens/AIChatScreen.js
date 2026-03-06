@@ -404,7 +404,9 @@ export default function AIChatScreen({ navigation, route }) {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
 
       const active = await prepareSingleRecording();
@@ -412,7 +414,7 @@ export default function AIChatScreen({ navigation, route }) {
       setIsRecording(true);
     } catch (error) {
       console.error('Voice recording start failed:', error);
-      Alert.alert('Recording Error', 'Could not start recording.');
+      Alert.alert('Recording Error', `Could not start recording: ${error.message}`);
     }
   };
 

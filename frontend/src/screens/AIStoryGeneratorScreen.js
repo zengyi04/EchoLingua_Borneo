@@ -5,16 +5,19 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, Octicons } from '@expo/
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS, FONTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { prepareSingleRecording, stopAndReleaseRecording } from '../services/recordingService';
+import { translateText } from '../services/translationService';
+import { WORLD_LANGUAGES, getBorneoLanguages } from '../constants/languages';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.EXPO_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash';
 const STORIES_STORAGE_KEY = '@echolingua_stories';
 const RECORDINGS_STORAGE_KEY = '@echolingua_recordings';
 const ELDER_VOICES_STORAGE_KEY = '@echolingua_elder_voices';
+const AI_TEXT_DRAFTS_KEY = '@echolingua_ai_text_drafts';
 
 export default function AIStoryGeneratorScreen() {
   const { theme } = useTheme();
@@ -56,15 +59,42 @@ export default function AIStoryGeneratorScreen() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newName, setNewName] = useState('');
 
+  // Create Story Modal State
+  const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
+  const [storyTitle, setStoryTitle] = useState('');
+  const [storyDescription, setStoryDescription] = useState('');
+  const [isSavingStory, setIsSavingStory] = useState(false);
+  
+  // Recipient Selection State
+  const [showRecipientModal, setShowRecipientModal] = useState(false);
+  const [selectedRecipients, setSelectedRecipients] = useState([]); // 'my_stories', 'community', or emergency contact IDs
+  const [emergencyContacts, setEmergencyContacts] = useState([]);
+  const [emergencyContactsWithApp, setEmergencyContactsWithApp] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Translation State
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState(null);
+  const [translatedText, setTranslatedText] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+
   // Load recordings on mount
   useEffect(() => {
     loadRecordings();
+    loadUserAndContacts();
     return () => {
       if (sound) {
         sound.unloadAsync();
       }
     };
   }, []);
+
+  // Reload user and emergency contacts when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserAndContacts();
+    }, [])
+  );
 
   // Handle updates to route params (e.g. from Library "Train Voice" button)
   useEffect(() => {
@@ -89,13 +119,98 @@ export default function AIStoryGeneratorScreen() {
     }
   };
 
+  // Load current user and emergency contacts
+  const loadUserAndContacts = async () => {
+    try {
+      // Load current user
+      const userJson = await AsyncStorage.getItem('@echolingua_current_user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setCurrentUser(user);
+
+        // Load emergency contacts from user profile
+        const userContacts = user.emergencyContacts || [];
+        setEmergencyContacts(userContacts);
+
+        // Load users database to match contacts with app users
+        const usersJson = await AsyncStorage.getItem('@echolingua_users_database');
+        const allUsers = usersJson ? JSON.parse(usersJson) : [];
+
+        // Match emergency contacts with app users using multiple identifiers
+        const contactsWithApp = userContacts.map((contact) => {
+          const normalizedEmail = contact.email?.trim().toLowerCase();
+          const normalizedPhone = contact.phone?.trim();
+          const normalizedUsername = contact.username?.trim().toLowerCase();
+          const normalizedLinkedName = contact.linkedUserName?.trim().toLowerCase();
+
+          const appUser = allUsers.find((u) => {
+            const userEmail = u.email?.trim().toLowerCase();
+            const userPhone = u.phone?.trim();
+            const userUsername = u.username?.trim().toLowerCase();
+            const userFullName = u.fullName?.trim().toLowerCase();
+
+            return (
+              (contact.linkedUserId && u.id === contact.linkedUserId) ||
+              (normalizedEmail && userEmail && userEmail === normalizedEmail) ||
+              (normalizedPhone && userPhone && userPhone === normalizedPhone) ||
+              (normalizedUsername && (userUsername === normalizedUsername || userFullName === normalizedUsername)) ||
+              (normalizedLinkedName && userFullName === normalizedLinkedName)
+            );
+          });
+
+          // Keep all profile contacts visible in share modal, with appUser attached when matched
+          return {
+            ...contact,
+            appUser: appUser || null,
+          };
+        });
+
+        setEmergencyContactsWithApp(contactsWithApp);
+      } else {
+        setCurrentUser(null);
+        setEmergencyContacts([]);
+        setEmergencyContactsWithApp([]);
+      }
+    } catch (e) {
+      console.error('Failed to load user and contacts', e);
+    }
+  };
+
+  useEffect(() => {
+    loadUserAndContacts();
+  }, []);
+
+  // Force reload when share modal opens
+  useEffect(() => {
+    if (mode === 'share') {
+      loadUserAndContacts();
+    }
+  }, [mode]);
+
   const startRecording = async () => {
     try {
+      // Request permissions
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permission Required', 'Microphone permission is required to record audio.');
+        return;
+      }
+
+      // Set audio mode for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
       const active = await prepareSingleRecording();
       setRecording(active);
       setIsRecording(true);
     } catch (error) {
-      Alert.alert('Error', 'Could not start recording.');
+      console.error('Recording error:', error);
+      Alert.alert('Error', `Could not start recording: ${error.message}`);
     }
   };
 
@@ -322,9 +437,40 @@ export default function AIStoryGeneratorScreen() {
       Alert.alert('Empty Input', 'Please type a story fragment first.');
       return;
     }
+    
+    // Show language selection modal first
+    setShowLanguageModal(true);
+  };
+
+  const handleTranslateAndGenerate = async () => {
+    setShowLanguageModal(false);
+    
+    if (!targetLanguage) {
+      // No translation, generate directly
+      setMode('processing');
+      setLoadingMessage('Dreaming up the story...');
+      await generateStoryFromText(inputText);
+      return;
+    }
+
+    // Translate first, then generate
     setMode('processing');
-    setLoadingMessage('Dreaming up the story...');
-    await generateStoryFromText(inputText);
+    setLoadingMessage('Translating text...');
+    setIsTranslating(true);
+    
+    try {
+      const translated = await translateText(inputText, targetLanguage.code);
+      setTranslatedText(translated);
+      setIsTranslating(false);
+      
+      setLoadingMessage('Dreaming up the story...');
+      await generateStoryFromText(translated);
+    } catch (error) {
+      setIsTranslating(false);
+      Alert.alert('Translation Error', 'Failed to translate text. Generating with original text.');
+      setLoadingMessage('Dreaming up the story...');
+      await generateStoryFromText(inputText);
+    }
   };
 
   const transcribeAudio = async (base64Audio) => {
@@ -355,7 +501,7 @@ export default function AIStoryGeneratorScreen() {
       const data = await response.json();
       return data?.candidates?.[0]?.content?.parts?.[0]?.text;
     } catch (e) {
-      console.log('API Transcription failed or skipped, using mock data:', e.message);
+      // API Transcription unavailable, using mock data
       
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -410,10 +556,10 @@ export default function AIStoryGeneratorScreen() {
       const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const storyObj = JSON.parse(cleanJson);
       
-      finishGeneration(storyObj);
+      finishGeneration(storyObj, seedText);
 
     } catch (e) {
-      console.log('API Generation failed or skipped, using mock data:', e.message);
+      // API Generation unavailable, using mock data
       
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -442,44 +588,354 @@ export default function AIStoryGeneratorScreen() {
         ]
       };
       
-      finishGeneration(mockStory);
+      finishGeneration(mockStory, seedText);
     }
   };
 
-  const finishGeneration = async (storyObj) => {
+  const finishGeneration = async (storyObj, sourceText = '') => {
       const newStory = {
         id: Date.now().toString(),
         createdAt: new Date().toISOString(),
         isAiGenerated: true,
+        sourceText: sourceText || inputText.trim(),
         ...storyObj
       };
       
-      // Auto-save to library
-      try {
-        const existingRaw = await AsyncStorage.getItem(STORIES_STORAGE_KEY);
-        const existing = existingRaw ? JSON.parse(existingRaw) : [];
-        const newStories = [newStory, ...existing];
-        await AsyncStorage.setItem(STORIES_STORAGE_KEY, JSON.stringify(newStories));
-      } catch (e) {
-        console.error('Failed to auto-save story', e);
-      }
-
+      setGeneratedStory(newStory);
       setMode('input');
       setLoadingMessage('');
-      navigation.navigate('Story', { story: newStory });
+      
+      // Show modal to enter title and description
+      setStoryTitle(newStory.title || '');
+      setStoryDescription(newStory.summary || '');
+      setShowCreateStoryModal(true);
   };
 
+  // Helper function to get unique key for contact
+  const getContactRecipientKey = (contact) => {
+    return `${contact.id}-${contact.appUser?.id || contact.linkedUserId || 'app'}`;
+  };
 
+  // Toggle recipient selection
+  const toggleRecipient = (recipientId) => {
+    if (selectedRecipients.includes(recipientId)) {
+      setSelectedRecipients(selectedRecipients.filter(r => r !== recipientId));
+    } else {
+      setSelectedRecipients([...selectedRecipients, recipientId]);
+    }
+  };
+
+  // Proceed from title/description to recipient selection
+  const handleProceedToRecipients = () => {
+    if (!storyTitle.trim()) {
+      Alert.alert('Title Required', 'Please enter a title for your story');
+      return;
+    }
+
+    setShowCreateStoryModal(false);
+    setShowRecipientModal(true);
+  };
+
+  // Save shared stories to emergency contacts
+  const saveSharedStoriesToContacts = async (story, contactIds) => {
+    try {
+      const contactEmails = [];
+      const sharedWithUserIds = [];
+      for (const contactId of contactIds) {
+        const contact = emergencyContactsWithApp.find(c => getContactRecipientKey(c) === contactId);
+        if (contact) {
+          const recipientEmail = contact.appUser?.email || contact.email;
+          const recipientUserId = contact.appUser?.id || contact.linkedUserId || null;
+
+          if (recipientEmail) {
+            contactEmails.push(recipientEmail);
+          }
+
+          if (recipientUserId) {
+            sharedWithUserIds.push(recipientUserId);
+          }
+        }
+      }
+
+      if (contactEmails.length === 0 && sharedWithUserIds.length === 0) {
+        return;
+      }
+
+      const sharedJson = await AsyncStorage.getItem('@echolingua_shared_stories');
+      const existingShared = sharedJson ? JSON.parse(sharedJson) : [];
+
+      const sharedStory = {
+        ...story,
+        sharedBy: currentUser?.fullName || 'Anonymous',
+        sharedByEmail: currentUser?.email || null,
+        sharedWithEmails: contactEmails,
+        sharedWithUserIds,
+        sharedAt: new Date().toISOString(),
+      };
+
+      const updatedShared = [sharedStory, ...existingShared];
+      await AsyncStorage.setItem('@echolingua_shared_stories', JSON.stringify(updatedShared));
+      
+      // Create notifications for emergency contacts
+      await createEmergencyContactNotifications(sharedStory, contactIds);
+    } catch (error) {
+      console.error('Failed to save shared stories:', error);
+    }
+  };
+
+  // Create notifications for emergency contacts when story is shared
+  const createEmergencyContactNotifications = async (sharedStory, contactIds) => {
+    try {
+      if (!currentUser) return;
+
+      const NOTIFICATIONS_KEY = '@echolingua_notifications';
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const existingNotifications = notifData ? JSON.parse(notifData) : [];
+
+      // Create notification for each emergency contact
+      const newNotifications = [];
+      for (const contactId of contactIds) {
+        const contact = emergencyContactsWithApp.find(c => getContactRecipientKey(c) === contactId);
+        const recipientId = contact?.appUser?.id || contact?.linkedUserId;
+        if (contact && recipientId) {
+          newNotifications.push({
+            id: `notif_${Date.now()}_${recipientId}_${Math.random()}`,
+            type: 'shared_story',
+            recipientId,
+            senderId: currentUser.id,
+            senderName: currentUser.fullName || 'Someone',
+            title: `${currentUser.fullName || 'Someone'} shared a story with you`,
+            message: `"${sharedStory.title}" - Check Other Creation section`,
+            storyData: sharedStory,
+            timestamp: new Date().toISOString(),
+            read: false,
+          });
+        }
+      }
+
+      const updatedNotifications = [...newNotifications, ...existingNotifications];
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
+      console.log(`✅ Created ${newNotifications.length} notifications for emergency contacts`);
+    } catch (error) {
+      console.error('❌ Failed to create emergency contact notifications:', error);
+    }
+  };
+
+  // Create notifications for all users when a new community story is shared
+  const createCommunityStoryNotifications = async (story) => {
+    try {
+      const USERS_DB_KEY = '@echolingua_users_database';
+      const NOTIFICATIONS_KEY = '@echolingua_notifications';
+      
+      // Get all users
+      const usersData = await AsyncStorage.getItem(USERS_DB_KEY);
+      if (!usersData) return;
+      
+      const allUsers = JSON.parse(usersData);
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const allNotifications = notifData ? JSON.parse(notifData) : [];
+
+      // Create notification for each user except the author
+      for (const user of allUsers) {
+        if (user.id !== currentUser?.id) {
+          const notification = {
+            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${user.id}`,
+            type: 'story',
+            recipientId: user.id,
+            senderId: currentUser?.id || 'unknown',
+            senderName: currentUser?.fullName || currentUser?.name || 'Someone',
+            senderAvatar: currentUser?.profileImage || null,
+            title: 'New Community Story',
+            message: `${currentUser?.fullName || 'Someone'} shared a new story: "${story.title}"`,
+            storyData: story,
+            timestamp: new Date().toISOString(),
+            read: false,
+          };
+          allNotifications.push(notification);
+        }
+      }
+
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(allNotifications));
+    } catch (error) {
+      console.error('Failed to create community story notifications:', error);
+    }
+  };
+
+  const saveStoryToLibrary = async () => {
+    if (!storyTitle.trim()) {
+      Alert.alert('Title Required', 'Please enter a title for your story');
+      return;
+    }
+
+    if (selectedRecipients.length === 0) {
+      Alert.alert('Recipient Required', 'Please select at least one destination.');
+      return;
+    }
+
+    setIsSavingStory(true);
+    setShowRecipientModal(false);
+
+    try {
+      const myStoriesSelected = selectedRecipients.includes('my_stories');
+      const communitySelected = selectedRecipients.includes('community');
+      const emergencyContactIds = selectedRecipients.filter(r => r !== 'my_stories' && r !== 'community');
+
+      const normalizedTitle = storyTitle.trim();
+      const normalizedDescription = storyDescription.trim() || generatedStory?.summary || '';
+      const normalizedText = (
+        translatedText ||
+        inputText ||
+        generatedStory?.sourceText ||
+        generatedStory?.summary ||
+        ''
+      ).trim();
+
+      // Always store typed text locally first (draft history)
+      const existingDraftsRaw = await AsyncStorage.getItem(AI_TEXT_DRAFTS_KEY);
+      const existingDrafts = existingDraftsRaw ? JSON.parse(existingDraftsRaw) : [];
+      const localDraft = {
+        id: Date.now().toString(),
+        title: normalizedTitle,
+        description: normalizedDescription,
+        text: normalizedText,
+        authorId: currentUser?.id || null,
+        authorName: currentUser?.fullName || currentUser?.name || 'Anonymous',
+        createdAt: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem(AI_TEXT_DRAFTS_KEY, JSON.stringify([localDraft, ...existingDrafts]));
+
+      // Build clean payload (no demo pages) for all share destinations
+      const updatedStory = {
+        id: generatedStory?.id || Date.now().toString(),
+        createdAt: generatedStory?.createdAt || new Date().toISOString(),
+        isAiGenerated: true,
+        title: normalizedTitle,
+        description: normalizedDescription,
+        summary: normalizedDescription,
+        text: normalizedText,
+        sourceText: normalizedText,
+        author: currentUser?.fullName || 'AI Generator',
+        authorEmail: currentUser?.email || null,
+        authorId: currentUser?.id || null,
+        authorRole: currentUser?.role || 'learner',
+        category: 'AI Generated',
+        recipients: selectedRecipients,
+      };
+
+      // Save to My Creations (My Creation in Story Library)
+      if (myStoriesSelected) {
+        const existingRaw = await AsyncStorage.getItem(STORIES_STORAGE_KEY);
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        await AsyncStorage.setItem(STORIES_STORAGE_KEY, JSON.stringify([updatedStory, ...existing]));
+      }
+
+      // Save to Community Story
+      if (communitySelected) {
+        const existingRaw = await AsyncStorage.getItem('@echolingua_stories');
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        await AsyncStorage.setItem('@echolingua_stories', JSON.stringify([updatedStory, ...existing]));
+        
+        // Create notifications for all users about new community story
+        await createCommunityStoryNotifications(updatedStory);
+      }
+
+      // Share to Emergency Contacts (Other Creation)
+      if (emergencyContactIds.length > 0) {
+        await saveSharedStoriesToContacts(updatedStory, emergencyContactIds);
+      }
+      
+      setIsSavingStory(false);
+      
+      const destinations = [];
+      if (myStoriesSelected) destinations.push('My Creations');
+      if (communitySelected) destinations.push('Community Story');
+      if (emergencyContactIds.length > 0) destinations.push(`${emergencyContactIds.length} Emergency Contact(s) - Other Creation`);
+
+      // Navigate based on selection
+      if (communitySelected) {
+        Alert.alert(
+          'Story Saved! 🎉', 
+          `"${storyTitle}" has been saved to Community Story.`,
+          [
+            {
+              text: 'View Community',
+              onPress: () => navigation.navigate('CommunityStory')
+            },
+            { text: 'OK' }
+          ]
+        );
+      } else if (myStoriesSelected) {
+        Alert.alert(
+          'Story Saved! 🎉', 
+          `"${storyTitle}" has been saved to My Creations.`,
+          [
+            {
+              text: 'View My Stories',
+              onPress: () => navigation.navigate('MainTabs', { screen: 'StoriesTab' })
+            },
+            { text: 'OK' }
+          ]
+        );
+      } else if (emergencyContactIds.length > 0) {
+        Alert.alert(
+          'Story Saved! 🎉', 
+          `"${storyTitle}" has been shared with ${emergencyContactIds.length} emergency contact(s).`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Story Saved! 🎉', 
+          `"${storyTitle}" has been saved.`,
+          [{ text: 'OK' }]
+        );
+      }
+
+      // Reset form
+      setStoryTitle('');
+      setStoryDescription('');
+      setGeneratedStory(null);
+      setSelectedRecipients([]);
+    } catch (e) {
+      setIsSavingStory(false);
+      Alert.alert('Error', 'Failed to save story. Please try again.');
+    }
+  };
 
   const saveStory = async () => {
     try {
+      const normalizedTitle = generatedStory?.title?.trim() || 'Untitled Story';
+      const normalizedDescription = generatedStory?.summary?.trim() || generatedStory?.description?.trim() || '';
+      const normalizedText = (
+        translatedText ||
+        inputText ||
+        generatedStory?.sourceText ||
+        generatedStory?.summary ||
+        ''
+      ).trim();
+
+      const cleanStory = {
+        id: generatedStory?.id || Date.now().toString(),
+        createdAt: generatedStory?.createdAt || new Date().toISOString(),
+        isAiGenerated: true,
+        title: normalizedTitle,
+        description: normalizedDescription,
+        summary: normalizedDescription,
+        text: normalizedText,
+        sourceText: normalizedText,
+        author: currentUser?.fullName || 'AI Generator',
+        authorEmail: currentUser?.email || null,
+        authorId: currentUser?.id || null,
+        authorRole: currentUser?.role || 'learner',
+        category: 'AI Generated',
+      };
+
       const existingRaw = await AsyncStorage.getItem(STORIES_STORAGE_KEY);
       const existing = existingRaw ? JSON.parse(existingRaw) : [];
-      const newStories = [generatedStory, ...existing];
+      const newStories = [cleanStory, ...existing];
       await AsyncStorage.setItem(STORIES_STORAGE_KEY, JSON.stringify(newStories));
       
       Alert.alert('Success', 'Story saved to library!');
-      navigation.replace('Story', { story: generatedStory });
+      navigation.replace('Story', { story: cleanStory });
     } catch (e) {
       Alert.alert('Error', 'Failed to save story.');
     }
@@ -664,7 +1120,7 @@ export default function AIStoryGeneratorScreen() {
                   style={[styles.generateBtn, { backgroundColor: theme.primary }]}
                   onPress={handleTextGenerate}
                >
-                 <MaterialCommunityIcons name="wand" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                 <MaterialCommunityIcons name="auto-fix" size={20} color="#FFF" style={{ marginRight: 8 }} />
                  <Text style={styles.generateBtnText}>Generate Story</Text>
                </TouchableOpacity>
             </View>
@@ -776,13 +1232,21 @@ export default function AIStoryGeneratorScreen() {
                       onPress={() => {
                          setShowActionModal(false);
                          if (selectedRecording) {
-                             navigation.navigate('CommunityStory', {
-                                audioUri: selectedRecording.uri,
-                                duration: selectedRecording.duration,
-                                fileName: selectedRecording.fileName,
-                                transcript: selectedRecording.transcript,
-                                description: selectedRecording.transcript 
-                             });
+                             // Show create story modal instead of navigating
+                             const mockStory = {
+                               id: Date.now().toString(),
+                               title: selectedRecording.fileName || 'Recording Story',
+                               summary: selectedRecording.transcript || 'A story from recording',
+                               audioUri: selectedRecording.uri,
+                               duration: selectedRecording.duration,
+                               transcript: selectedRecording.transcript,
+                               createdAt: new Date().toISOString(),
+                               isAiGenerated: false,
+                             };
+                             setGeneratedStory(mockStory);
+                             setStoryTitle(selectedRecording.fileName || '');
+                             setStoryDescription(selectedRecording.transcript || '');
+                             setShowCreateStoryModal(true);
                          }
                       }}
                    >
@@ -870,6 +1334,101 @@ export default function AIStoryGeneratorScreen() {
            </View>
          </View>
        </Modal>
+
+       {/* Create Story Modal - Title and Description */}
+       <Modal
+          visible={showCreateStoryModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowCreateStoryModal(false)}
+       >
+         <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+           <View style={[styles.modalContent, { backgroundColor: theme.surface, width: '90%', maxHeight: '70%' }]}>
+             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+               <Text style={[styles.modalTitle, { color: theme.text }]}>Save Story to Library</Text>
+               <TouchableOpacity onPress={() => setShowCreateStoryModal(false)}>
+                 <Ionicons name="close-circle" size={28} color={theme.textSecondary} />
+               </TouchableOpacity>
+             </View>
+
+             <ScrollView showsVerticalScrollIndicator={false}>
+               {/* Title Input */}
+               <View style={{ marginBottom: SPACING.m }}>
+                 <Text style={[styles.inputLabel, { color: theme.text, marginBottom: 6 }]}>
+                   Story Title <Text style={{ color: theme.error }}>*</Text>
+                 </Text>
+                 <TextInput
+                   style={[styles.inputField, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
+                   value={storyTitle}
+                   onChangeText={setStoryTitle}
+                   placeholder="Enter a title for your story..."
+                   placeholderTextColor={theme.textSecondary}
+                   maxLength={100}
+                   autoFocus
+                 />
+                 <Text style={[styles.characterCount, { color: theme.textSecondary }]}>{storyTitle.length}/100</Text>
+               </View>
+
+               {/* Description Input */}
+               <View style={{ marginBottom: SPACING.m }}>
+                 <Text style={[styles.inputLabel, { color: theme.text, marginBottom: 6 }]}>
+                   Description (Optional)
+                 </Text>
+                 <TextInput
+                   style={[styles.inputField, { 
+                     color: theme.text, 
+                     borderColor: theme.border, 
+                     backgroundColor: theme.background,
+                     height: 100,
+                     textAlignVertical: 'top'
+                   }]}
+                   value={storyDescription}
+                   onChangeText={setStoryDescription}
+                   placeholder="Describe your story, add cultural context..."
+                   placeholderTextColor={theme.textSecondary}
+                   maxLength={500}
+                   multiline
+                   numberOfLines={4}
+                 />
+                 <Text style={[styles.characterCount, { color: theme.textSecondary }]}>{storyDescription.length}/500</Text>
+               </View>
+
+               {/* Info Banner */}
+               <View style={{ 
+                 flexDirection: 'row', 
+                 alignItems: 'center', 
+                 backgroundColor: theme.primary + '20', 
+                 padding: SPACING.m, 
+                 borderRadius: 8,
+                 marginBottom: SPACING.m 
+               }}>
+                 <Ionicons name="information-circle" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+                 <Text style={{ color: theme.text, fontSize: 13, flex: 1 }}>
+                   Next, you'll choose where to save and share your story
+                 </Text>
+               </View>
+             </ScrollView>
+
+             {/* Continue Button */}
+             <View style={styles.modalActions}>
+               <TouchableOpacity 
+                 onPress={() => setShowCreateStoryModal(false)} 
+                 style={[styles.modalBtn, { borderWidth: 1, borderColor: theme.border }]}
+               >
+                 <Text style={{ color: theme.text }}>Cancel</Text>
+               </TouchableOpacity>
+               <TouchableOpacity 
+                 onPress={handleProceedToRecipients} 
+                 style={[styles.modalBtn, { backgroundColor: theme.primary }]}
+                 disabled={!storyTitle.trim()}
+               >
+                 <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Continue to Sharing Options</Text>
+               </TouchableOpacity>
+             </View>
+           </View>
+         </View>
+       </Modal>
+
        {/* Rename Modal */}
        <Modal
           visible={showRenameModal}
@@ -901,6 +1460,261 @@ export default function AIStoryGeneratorScreen() {
            </View>
          </View>
        </Modal>
+
+       {/* Recipient Selection Modal */}
+       <Modal
+          visible={showRecipientModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowRecipientModal(false)}
+       >
+         <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+           <View style={[styles.modalContent, { backgroundColor: theme.surface, width: '90%', maxHeight: '80%' }]}>
+             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+               <Text style={[styles.modalTitle, { color: theme.text }]}>Share Story</Text>
+               <TouchableOpacity onPress={() => setShowRecipientModal(false)}>
+                 <Ionicons name="close-circle" size={28} color={theme.textSecondary} />
+               </TouchableOpacity>
+             </View>
+
+             <ScrollView showsVerticalScrollIndicator={false}>
+               {/* My Creations Option */}
+               <TouchableOpacity
+                 style={[
+                   styles.destinationOption,
+                   { 
+                     backgroundColor: theme.glassMedium, 
+                     borderColor: selectedRecipients.includes('my_stories') ? theme.primary : theme.border,
+                     borderWidth: 2,
+                     marginBottom: 8
+                   }
+                 ]}
+                 onPress={() => toggleRecipient('my_stories')}
+               >
+                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                   <View style={[styles.destinationIcon, { backgroundColor: theme.secondary + '20' }]}>
+                     <Ionicons name="book" size={20} color={theme.secondary} />
+                   </View>
+                   <View style={{ flex: 1 }}>
+                     <Text style={{ color: theme.text, fontWeight: '600', fontSize: 15 }}>My Creations</Text>
+                     <Text style={{ color: theme.textSecondary, fontSize: 12 }}>Save to Story Library (My Creation)</Text>
+                   </View>
+                 </View>
+                 <Ionicons
+                   name={selectedRecipients.includes('my_stories') ? 'checkbox' : 'square-outline'}
+                   size={28}
+                   color={selectedRecipients.includes('my_stories') ? theme.primary : theme.textSecondary}
+                 />
+               </TouchableOpacity>
+
+               {/* Community Story Option */}
+               <TouchableOpacity
+                 style={[
+                   styles.destinationOption,
+                   { 
+                     backgroundColor: theme.glassMedium, 
+                     borderColor: selectedRecipients.includes('community') ? theme.primary : theme.border,
+                     borderWidth: 2,
+                     marginBottom: 8
+                   }
+                 ]}
+                 onPress={() => toggleRecipient('community')}
+               >
+                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                   <View style={[styles.destinationIcon, { backgroundColor: theme.primary + '20' }]}>
+                     <Ionicons name="globe" size={20} color={theme.primary} />
+                   </View>
+                   <View style={{ flex: 1 }}>
+                     <Text style={{ color: theme.text, fontWeight: '600', fontSize: 15 }}>Community Story</Text>
+                     <Text style={{ color: theme.textSecondary, fontSize: 12 }}>Share with the community</Text>
+                   </View>
+                 </View>
+                 <Ionicons
+                   name={selectedRecipients.includes('community') ? 'checkbox' : 'square-outline'}
+                   size={28}
+                   color={selectedRecipients.includes('community') ? theme.primary : theme.textSecondary}
+                 />
+               </TouchableOpacity>
+
+               {/* Emergency Contacts Section */}
+               {emergencyContactsWithApp.length > 0 && (
+                 <>
+                   <View style={{ marginVertical: SPACING.m, flexDirection: 'row', alignItems: 'center' }}>
+                     <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+                     <Text style={{ marginHorizontal: SPACING.m, color: theme.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                       Emergency Contacts (Other Creation)
+                     </Text>
+                     <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+                   </View>
+
+                   {emergencyContactsWithApp.map((contact, index) => {
+                     const recipientKey = getContactRecipientKey(contact);
+                     return (
+                       <TouchableOpacity
+                         key={`contact-${recipientKey}-${index}`}
+                         style={[
+                           styles.destinationOption,
+                           { 
+                             backgroundColor: theme.glassMedium, 
+                             borderColor: selectedRecipients.includes(recipientKey) ? theme.primary : theme.border,
+                             borderWidth: 2,
+                             marginBottom: 8
+                           }
+                         ]}
+                         onPress={() => toggleRecipient(recipientKey)}
+                       >
+                         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                           <View style={[styles.destinationIcon, { backgroundColor: theme.accent + '20' }]}>
+                             <Ionicons name="person-circle" size={20} color={theme.accent} />
+                           </View>
+                           <View style={{ flex: 1 }}>
+                             <Text style={{ color: theme.text, fontWeight: '600', fontSize: 15 }}>{contact.name}</Text>
+                             <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                               {contact.relation} • {contact.appUser?.fullName || contact.linkedUserName || contact.email || contact.phone || 'Profile Contact'}
+                             </Text>
+                           </View>
+                         </View>
+                         <Ionicons
+                           name={selectedRecipients.includes(recipientKey) ? 'checkbox' : 'square-outline'}
+                           size={28}
+                           color={selectedRecipients.includes(recipientKey) ? theme.primary : theme.textSecondary}
+                         />
+                       </TouchableOpacity>
+                     );
+                   })}
+                 </>
+               )}
+
+               {emergencyContactsWithApp.length === 0 && (
+                 <View style={{ 
+                   padding: SPACING.m, 
+                   backgroundColor: theme.background, 
+                   borderRadius: 8, 
+                   alignItems: 'center',
+                   marginTop: SPACING.m 
+                 }}>
+                   <Ionicons name="people-outline" size={32} color={theme.textSecondary} />
+                   <Text style={{ color: theme.textSecondary, marginTop: SPACING.s, textAlign: 'center' }}>
+                     No emergency contacts found in your profile. Add contacts in Profile > Emergency Contacts.
+                   </Text>
+                 </View>
+               )}
+
+               {currentUser && (
+                 <View style={{ 
+                   flexDirection: 'row', 
+                   alignItems: 'center', 
+                   backgroundColor: theme.primary + '20', 
+                   padding: SPACING.m, 
+                   borderRadius: 8,
+                   marginTop: SPACING.m 
+                 }}>
+                   <Ionicons name="information-circle" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+                   <Text style={{ color: theme.text, fontSize: 12, flex: 1 }}>
+                     Story will be labeled as sent by {currentUser.fullName} ({currentUser.role || 'learner'})
+                   </Text>
+                 </View>
+               )}
+             </ScrollView>
+
+             {/* Save Button */}
+             <View style={styles.modalActions}>
+               <TouchableOpacity 
+                 onPress={() => setShowRecipientModal(false)} 
+                 style={[styles.modalBtn, { borderWidth: 1, borderColor: theme.border }]}
+               >
+                 <Text style={{ color: theme.text }}>Back</Text>
+               </TouchableOpacity>
+               <TouchableOpacity 
+                 onPress={saveStoryToLibrary} 
+                 style={[styles.modalBtn, { backgroundColor: theme.primary }]}
+                 disabled={selectedRecipients.length === 0 || isSavingStory}
+               >
+                 {isSavingStory ? (
+                   <ActivityIndicator size="small" color="#FFF" />
+                 ) : (
+                   <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Share Now ({selectedRecipients.length})</Text>
+                 )}
+               </TouchableOpacity>
+             </View>
+           </View>
+         </View>
+       </Modal>
+
+       {/* Language Selection Modal for Translation */}
+       <Modal
+          visible={showLanguageModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowLanguageModal(false)}
+       >
+          <TouchableOpacity 
+             style={styles.modalOverlay} 
+             activeOpacity={1} 
+             onPress={() => setShowLanguageModal(false)}
+          >
+             <TouchableOpacity 
+                activeOpacity={1}
+                style={[styles.modalContent, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
+             >
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Translate Before Generating?</Text>
+                <Text style={[styles.modalSubtitle, { color: theme.textSecondary, marginBottom: SPACING.m }]}>
+                   Select a language to translate your text, or skip to generate with original text.
+                </Text>
+
+                {/* Borneo Languages */}
+                <Text style={[{ color: theme.primary, fontSize: 14, fontWeight: 'bold', marginBottom: SPACING.s }]}>Indigenous Borneo</Text>
+                <ScrollView style={{ maxHeight: 250 }}>
+                   {getBorneoLanguages().slice(0, 5).map((lang) => (
+                      <TouchableOpacity 
+                         key={lang.id} 
+                         style={[
+                            { 
+                              flexDirection: 'row', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              paddingVertical: SPACING.m,
+                              borderBottomWidth: 1,
+                              borderBottomColor: theme.border
+                            },
+                            targetLanguage?.id === lang.id && { backgroundColor: theme.primary + '20' }
+                         ]}
+                         onPress={() => setTargetLanguage(lang)}
+                      >
+                         <Text style={[{ color: theme.text, fontSize: 16 }]}>
+                            {lang.label}
+                         </Text>
+                         {targetLanguage?.id === lang.id && (
+                            <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+                         )}
+                      </TouchableOpacity>
+                   ))}
+                </ScrollView>
+
+                <View style={[styles.modalActions, { marginTop: SPACING.l }]}>
+                   <TouchableOpacity 
+                      style={[styles.modalBtn, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}
+                      onPress={() => {
+                         setTargetLanguage(null);
+                         handleTranslateAndGenerate();
+                      }}
+                   >
+                      <Text style={[{ color: theme.text }]}>Skip Translation</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity 
+                      style={[styles.modalBtn, { backgroundColor: theme.primary, opacity: !targetLanguage ? 0.5 : 1 }]}
+                      onPress={handleTranslateAndGenerate}
+                      disabled={!targetLanguage}
+                   >
+                      <Text style={[{ color: '#FFFFFF' }]}>
+                         Translate & Generate
+                      </Text>
+                   </TouchableOpacity>
+                </View>
+             </TouchableOpacity>
+          </TouchableOpacity>
+       </Modal>
+
     </SafeAreaView>
   );
 }
@@ -1034,6 +1848,22 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.s, textAlign: 'center' },
   modalDesc: { fontSize: 14, marginBottom: SPACING.m, textAlign: 'center' },
   inputField: { borderWidth: 1, borderRadius: 8, padding: SPACING.m, marginBottom: SPACING.l },
+  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 6 },
+  characterCount: { fontSize: 12, textAlign: 'right', marginTop: 4, marginBottom: SPACING.m },
+  destinationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    borderRadius: 12,
+  },
+  destinationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: SPACING.m },
   modalBtn: { paddingVertical: SPACING.s, paddingHorizontal: SPACING.m, borderRadius: 8 },
 

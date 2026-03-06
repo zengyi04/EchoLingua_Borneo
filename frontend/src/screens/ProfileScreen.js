@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Linking, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Linking, Switch, Alert, Image, ActionSheetIOS, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
@@ -8,6 +8,7 @@ import { getUserProfile, getAverageScoreByDifficulty } from '../services/scoring
 import { WORLD_LANGUAGES, getBorneoLanguages, getLanguagesByRegion } from '../constants/languages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
+import * as ImagePicker from 'expo-image-picker';
 
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const USERS_DB_KEY = '@echolingua_users_database';
@@ -151,6 +152,106 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleChangeProfilePicture = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            takePhoto();
+          } else if (buttonIndex === 2) {
+            pickImage();
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Change Profile Picture',
+        'Choose an option',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Take Photo', onPress: takePhoto },
+          { text: 'Choose from Library', onPress: pickImage },
+        ]
+      );
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Camera permission is required to take photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        await updateProfilePicture(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo');
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Photo library permission is required');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        await updateProfilePicture(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const updateProfilePicture = async (imageUri) => {
+    try {
+      // Update current user
+      const updatedUser = { ...currentUser, profileImage: imageUri };
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+
+      // Update in users database
+      const usersData = await AsyncStorage.getItem(USERS_DB_KEY);
+      if (usersData) {
+        const users = JSON.parse(usersData);
+        const updatedUsers = users.map(u =>
+          u.id === currentUser.id ? { ...u, profileImage: imageUri } : u
+        );
+        await AsyncStorage.setItem(USERS_DB_KEY, JSON.stringify(updatedUsers));
+      }
+
+      Alert.alert('Success', 'Profile picture updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      Alert.alert('Error', 'Failed to update profile picture');
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
@@ -194,13 +295,27 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[styles.avatarContainer, { backgroundColor: theme.primary }]}>
-            <Text style={[styles.avatarText, { color: theme.surface }]}>
-              {currentUser?.fullName 
-                ? currentUser.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-                : 'JD'}
-            </Text>
-          </View>
+          <TouchableOpacity 
+            style={[styles.avatarContainer, { backgroundColor: theme.primary }]}
+            onPress={handleChangeProfilePicture}
+            activeOpacity={0.8}
+          >
+            {currentUser?.profileImage ? (
+              <Image 
+                source={{ uri: currentUser.profileImage }} 
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={[styles.avatarText, { color: theme.surface }]}>
+                {currentUser?.fullName 
+                  ? currentUser.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                  : 'JD'}
+              </Text>
+            )}
+            <View style={[styles.cameraIconOverlay, { backgroundColor: theme.primary }]}>
+              <Ionicons name="camera" size={16} color={theme.surface} />
+            </View>
+          </TouchableOpacity>
           <Text style={[styles.userName, { color: theme.text }]}>{currentUser?.fullName || 'User Profile'}</Text>
           {userProfile && (
             <>
@@ -290,14 +405,6 @@ export default function ProfileScreen() {
           <Ionicons name="help-circle-outline" size={24} color={theme.text} />
           <Text style={[styles.menuListItem, { color: theme.text }]}>Help & Support</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.logoutButton, { backgroundColor: theme.error, shadowColor: theme.error, elevation: 4 }]} 
-          onPress={handleLogout}
-        >
-          <Ionicons name="log-out-outline" size={24} color="#FFF" />
-          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
         {/* User Signup Info Section */}
@@ -400,6 +507,15 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+
+        {/* Logout Button at Bottom */}
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: theme.error, shadowColor: theme.error, elevation: 4, marginTop: SPACING.l, marginBottom: SPACING.xl }]} 
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#FFF" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={showStats} animationType="slide" transparent onRequestClose={() => setShowStats(false)}>
@@ -622,8 +738,39 @@ const styles = StyleSheet.create({
   topBarTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   content: { padding: SPACING.l, paddingBottom: SPACING.xl },
   profileCard: { backgroundColor: COLORS.glassLight, borderColor: 'rgba(255, 255, 255, 0.6)', borderWidth: 1, borderRadius: SPACING.l, padding: SPACING.l, alignItems: 'center', marginBottom: SPACING.l, ...SHADOWS.small },
-  avatarContainer: { width: 70, height: 70, borderRadius: 35, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.s },
-  avatarText: { fontSize: 28, fontWeight: '700', color: COLORS.surface },
+  avatarContainer: { 
+    width: 70, 
+    height: 70, 
+    borderRadius: 35, 
+    backgroundColor: COLORS.primary, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: SPACING.s,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+  },
+  avatarText: { 
+    fontSize: 28, 
+    fontWeight: '700', 
+    color: COLORS.surface 
+  },
+  cameraIconOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
   userName: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   userLevel: { fontSize: 13, color: COLORS.textSecondary },
   pointsContainer: {

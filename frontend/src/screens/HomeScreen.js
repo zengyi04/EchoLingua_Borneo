@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Modal, Image, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
@@ -10,6 +10,8 @@ import { useTheme } from '../context/ThemeContext';
 const USERS_DATABASE_KEY = '@echolingua_users_database';
 const COMMUNITY_STORIES_KEY = '@echolingua_stories';
 const SEEN_STORIES_KEY = '@echolingua_seen_stories';
+const NOTIFICATIONS_KEY = '@echolingua_notifications';
+const USER_STORAGE_KEY = '@echolingua_current_user';
 
 const { width } = Dimensions.get('window');
 
@@ -44,14 +46,129 @@ export default function HomeScreen({ navigation }) {
   const [showLangModal, setShowLangModal] = useState(false); // Language selector hidden by default
   const [activeUsersCount, setActiveUsersCount] = useState(0);
   const [unreadStoriesCount, setUnreadStoriesCount] = useState(0);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Load stats when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      loadActiveUsersCount();
-      loadUnreadStoriesCount();
-    }, [])
-  );
+  const loadCurrentUser = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (userData) {
+        setCurrentUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (userData) {
+        const user = JSON.parse(userData);
+        const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+        if (notifData) {
+          const allNotifications = JSON.parse(notifData);
+          const userNotifications = allNotifications.filter(n => n.recipientId === user.id);
+          userNotifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          setNotifications(userNotifications);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    }
+  };
+
+  const markAsRead = async (notificationId) => {
+    try {
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      if (notifData) {
+        const allNotifications = JSON.parse(notifData);
+        const updated = allNotifications.map(n => 
+          n.id === notificationId ? { ...n, read: true } : n
+        );
+        await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
+        loadNotifications();
+        loadUnreadNotificationsCount();
+      }
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+    }
+  };
+
+  const handleNotificationPress = (notification) => {
+    markAsRead(notification.id);
+    setShowNotificationModal(false);
+    
+    if (notification.type === 'follow') {
+      navigation.navigate('UserProfile', { 
+        userId: notification.senderId, 
+        userName: notification.senderName 
+      });
+    } else if (notification.type === 'story' || notification.type === 'shared_story') {
+      navigation.navigate('Story', { story: notification.storyData });
+    } else if (notification.type === 'comment') {
+      navigation.navigate('Story', { story: notification.storyData });
+    }
+  };
+
+  const clearAllNotifications = () => {
+    Alert.alert(
+      'Clear All',
+      'Are you sure you want to clear all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+              if (notifData) {
+                const allNotifications = JSON.parse(notifData);
+                const filtered = allNotifications.filter(n => n.recipientId !== currentUser.id);
+                await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(filtered));
+                setNotifications([]);
+                loadUnreadNotificationsCount();
+              }
+            } catch (error) {
+              console.error('Failed to clear notifications:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'follow':
+        return 'person-add';
+      case 'story':
+        return 'book';
+      case 'shared_story':
+        return 'share';
+      case 'comment':
+        return 'chatbubble';
+      case 'like':
+        return 'heart';
+      default:
+        return 'notifications';
+    }
+  };
+
+  const getTimeSince = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = Math.floor((now - time) / 1000);
+
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+    return time.toLocaleDateString();
+  };
 
   const loadActiveUsersCount = async () => {
     try {
@@ -106,6 +223,36 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const loadUnreadNotificationsCount = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (userData) {
+        const user = JSON.parse(userData);
+        const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+        if (notifData) {
+          const allNotifications = JSON.parse(notifData);
+          const unreadCount = allNotifications.filter(n => 
+            n.recipientId === user.id && !n.read
+          ).length;
+          setUnreadNotificationsCount(unreadCount);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load unread notifications count:', error);
+      setUnreadNotificationsCount(0);
+    }
+  };
+
+  // Load stats when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      loadActiveUsersCount();
+      loadUnreadStoriesCount();
+      loadUnreadNotificationsCount();
+      loadCurrentUser();
+    }, [])
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -124,7 +271,23 @@ export default function HomeScreen({ navigation }) {
                   <Text style={[styles.appName, { color: theme.primary }]}>EchoLingua</Text>
                 </View>
              </View>
-             {/* Language Selector moved to Profile/Settings */}
+             {/* Notification Icon */}
+             <TouchableOpacity 
+               style={styles.notificationButton}
+               onPress={() => {
+                 setShowNotificationModal(true);
+                 loadNotifications();
+               }}
+             >
+               <Ionicons name="notifications-outline" size={24} color={theme.text} />
+               {unreadNotificationsCount > 0 && (
+                 <View style={[styles.notificationBadge, { backgroundColor: theme.error || '#EF4444' }]}>
+                   <Text style={styles.notificationBadgeText}>
+                     {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                   </Text>
+                 </View>
+               )}
+             </TouchableOpacity>
           </View>
           <Text style={[styles.tagline, { color: theme.textSecondary }]}>Revitalizing Indigenous Languages</Text>
         </View>
@@ -181,6 +344,92 @@ export default function HomeScreen({ navigation }) {
                    </TouchableOpacity>
                 ))}
              </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Notification Modal */}
+        <Modal
+          visible={showNotificationModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowNotificationModal(false)}
+        >
+          <TouchableOpacity 
+            style={styles.notificationModalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowNotificationModal(false)}
+          >
+            <TouchableOpacity 
+              style={[styles.notificationModalContent, { backgroundColor: theme.cardBackground }]} 
+              activeOpacity={1}
+            >
+              {/* Notification Header */}
+              <View style={[styles.notificationModalHeader, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.notificationModalTitle, { color: theme.text }]}>Notifications</Text>
+                {notifications.length > 0 && (
+                  <TouchableOpacity onPress={clearAllNotifications}>
+                    <Text style={[styles.clearButtonText, { color: theme.primary }]}>Clear All</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity 
+                  onPress={() => setShowNotificationModal(false)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Notifications List */}
+              {notifications.length === 0 ? (
+                <View style={styles.emptyNotificationContainer}>
+                  <Ionicons name="notifications-off-outline" size={64} color={theme.textSecondary} />
+                  <Text style={[styles.emptyNotificationTitle, { color: theme.text }]}>No Notifications</Text>
+                  <Text style={[styles.emptyNotificationMessage, { color: theme.textSecondary }]}>
+                    You'll see notifications here when someone follows you or shares content with you
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={notifications}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.notificationItem,
+                        { 
+                          backgroundColor: item.read ? theme.surface : theme.primary + '15', 
+                          borderColor: theme.border 
+                        }
+                      ]}
+                      onPress={() => handleNotificationPress(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.notificationIconContainer, { backgroundColor: theme.primary + '20' }]}>
+                        <Ionicons name={getNotificationIcon(item.type)} size={24} color={theme.primary} />
+                      </View>
+                      
+                      <View style={styles.notificationItemContent}>
+                        <Text style={[styles.notificationItemTitle, { color: theme.text }]}>
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.notificationItemMessage, { color: theme.textSecondary }]} numberOfLines={2}>
+                          {item.message}
+                        </Text>
+                        <Text style={[styles.notificationItemTime, { color: theme.textSecondary }]}>
+                          {getTimeSince(item.timestamp)}
+                        </Text>
+                      </View>
+
+                      {!item.read && (
+                        <View style={[styles.unreadIndicator, { backgroundColor: theme.primary }]} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.notificationListContainer}
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+            </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
 
@@ -537,6 +786,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  notificationButton: {
+    position: 'relative',
+    padding: SPACING.s,
+    alignSelf: 'flex-end',
+    marginBottom: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   langButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -643,5 +914,97 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
     color: COLORS.text,
+  },
+  // Notification Modal Styles
+  notificationModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationModalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: SPACING.m,
+    overflow: 'hidden',
+    ...SHADOWS.large,
+  },
+  notificationModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
+    borderBottomWidth: 1,
+  },
+  notificationModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  clearButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: SPACING.m,
+  },
+  closeButton: {
+    padding: SPACING.xs,
+  },
+  notificationListContainer: {
+    padding: SPACING.m,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    borderRadius: 12,
+    marginBottom: SPACING.m,
+    borderWidth: 1,
+    ...SHADOWS.small,
+  },
+  notificationIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
+  notificationItemContent: {
+    flex: 1,
+  },
+  notificationItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  notificationItemMessage: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  notificationItemTime: {
+    fontSize: 12,
+  },
+  unreadIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginLeft: SPACING.s,
+  },
+  emptyNotificationContainer: {
+    padding: SPACING.xl * 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyNotificationTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: SPACING.m,
+    marginBottom: SPACING.s,
+  },
+  emptyNotificationMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

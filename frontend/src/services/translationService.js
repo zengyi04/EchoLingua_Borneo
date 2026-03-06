@@ -38,8 +38,7 @@ const LANGUAGE_CODES = {
 export const translateText = async (text, languageId) => {
   try {
     if (!text || !languageId) {
-      console.warn('⚠️ Missing text or language for translation');
-      return text;
+      return text || '';
     }
 
     const targetCode = LANGUAGE_CODES[languageId] || 'en';

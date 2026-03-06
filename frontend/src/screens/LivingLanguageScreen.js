@@ -391,11 +391,21 @@ export default function LivingLanguageScreen() {
         Alert.alert('Permission Required', 'Microphone permission is required.');
         return;
       }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
       const activeRecording = await prepareSingleRecording();
       setRecording(activeRecording);
       setIsRecording(true);
     } catch (error) {
-      Alert.alert('Recording Error', 'Could not start recording.');
+      console.error('Recording error:', error);
+      Alert.alert('Recording Error', `Could not start recording: ${error.message}`);
     }
   };
 

@@ -34,6 +34,7 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import EmergencyContactsScreen from '../screens/EmergencyContactsScreen';
+import NotificationScreen from '../screens/NotificationScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -96,6 +97,7 @@ function TabNavigator() {
 }
 
 export default function AppNavigator() {
+  const { theme } = useTheme();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -117,8 +119,8 @@ export default function AppNavigator() {
 
   if (isCheckingAuth) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -137,6 +139,7 @@ export default function AppNavigator() {
       <Stack.Screen name="CommunityStory" component={CommunityStoryScreen} />
       <Stack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+      <Stack.Screen name="Notifications" component={NotificationScreen} />
       <Stack.Screen name="ProgressTracker" component={ProgressTrackerScreen} />
       <Stack.Screen name="CulturalEvents" component={CulturalEventsScreen} />
       <Stack.Screen name="Dictionary" component={DictionaryScreen} />

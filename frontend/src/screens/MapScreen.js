@@ -173,14 +173,24 @@ export default function MapScreen({ navigation }) {
       return;
     }
 
-    const lowercaseQuery = query.toLowerCase();
-    const filtered = CULTURAL_LOCATIONS.filter(
-      (loc) =>
-        loc.name.toLowerCase().includes(lowercaseQuery) ||
-        loc.description.toLowerCase().includes(lowercaseQuery) ||
-        loc.type.toLowerCase().includes(lowercaseQuery) ||
-        loc.languages.some((lang) => lang.toLowerCase().includes(lowercaseQuery))
-    );
+    // Normalize query: trim, lowercase, remove extra spaces
+    const normalizedQuery = query.trim().toLowerCase().replace(/\s+/g, ' ');
+    
+    // Split query into individual words for better matching
+    const queryWords = normalizedQuery.split(' ');
+    
+    const filtered = CULTURAL_LOCATIONS.filter((loc) => {
+      // Normalize all searchable fields
+      const searchableText = [
+        loc.name,
+        loc.description,
+        loc.type,
+        ...loc.languages
+      ].join(' ').toLowerCase();
+      
+      // Check if ANY query word matches ANY part of the searchable text
+      return queryWords.some(word => searchableText.includes(word));
+    });
     
     const sortedFiltered = sortLocationsByDistance(filtered);
     setFilteredLocations(sortedFiltered);

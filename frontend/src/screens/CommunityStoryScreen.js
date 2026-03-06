@@ -18,12 +18,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { COLORS, SPACING, SHADOWS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 const SEEN_STORIES_KEY = '@echolingua_seen_stories';
 const STORIES_STORAGE_KEY = '@echolingua_stories';
 const LEGACY_COMMUNITY_STORIES_KEY = 'communityStories';
+const NOTIFICATIONS_KEY = '@echolingua_notifications';
+const USER_STORAGE_KEY = '@echolingua_current_user';
 
 const formatTime = (seconds) => {
   if (!seconds) return '00:00';
@@ -284,14 +288,185 @@ export default function CommunityStoryScreen({ navigation }) {
     saveStories(updatedStories);
   };
 
+  // Download story as PDF
+  const handleDownloadStoryPDF = async (story) => {
+    try {
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Not Available', 'Sharing is not available on this device');
+        return;
+      }
+
+      // Prepare content for the story
+      const audioContent = story.audioUri 
+        ? `<p style="color: #666; font-style: italic; margin-top: 20px;">
+             📎 Audio Recording: This story includes an audio recording. 
+             <br/>Audio transcription feature coming soon...
+           </p>`
+        : '';
+
+      const imageContent = story.imageUri 
+        ? `<img src="${story.imageUri}" style="max-width: 100%; height: auto; margin: 20px 0; border-radius: 8px;" />`
+        : '';
+
+      // Generate HTML content
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${story.title}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              padding: 40px;
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+              color: #333;
+              line-height: 1.6;
+            }
+            .header {
+              border-bottom: 3px solid #4ECDC4;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .title {
+              font-size: 32px;
+              font-weight: bold;
+              color: #1a1a1a;
+              margin: 0 0 10px 0;
+            }
+            .meta {
+              color: #666;
+              font-size: 14px;
+              margin: 5px 0;
+            }
+            .content {
+              margin: 30px 0;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: 600;
+              color: #4ECDC4;
+              margin: 25px 0 10px 0;
+            }
+            .description {
+              font-size: 16px;
+              line-height: 1.8;
+              color: #444;
+              text-align: justify;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              text-align: center;
+              color: #999;
+              font-size: 12px;
+            }
+            .badge {
+              display: inline-block;
+              background: #E8F5F5;
+              color: #4ECDC4;
+              padding: 4px 12px;
+              border-radius: 12px;
+              font-size: 12px;
+              margin-right: 8px;
+              font-weight: 600;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">${story.title}</h1>
+            <div class="meta">
+              <span class="badge">${story.language}</span>
+              <span class="badge">${story.category}</span>
+            </div>
+            <div class="meta">
+              📝 By: ${story.author} | 
+              📅 ${new Date(story.uploadedAt).toLocaleDateString()}
+            </div>
+          </div>
+
+          <div class="content">
+            ${imageContent}
+            
+            <div class="section-title">Story Description</div>
+            <div class="description">
+              ${story.description || 'No description provided.'}
+            </div>
+
+            ${audioContent}
+          </div>
+
+          <div class="footer">
+            <p>Generated from EchoLingua Borneo Community Stories</p>
+            <p>Preserving Indigenous Languages • ${new Date().toLocaleDateString()}</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Generate PDF
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      
+      // Share the PDF
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `${story.title}.pdf`,
+        UTI: 'com.adobe.pdf'
+      });
+
+      Alert.alert('Success! 📄', 'Story has been exported as PDF');
+    } catch (error) {
+      console.error('Failed to download story as PDF:', error);
+      Alert.alert('Error', 'Failed to generate PDF: ' + error.message);
+    }
+  };
+
   const handleFollowAuthor = (storyId) => {
     const updatedStories = stories.map((story) => {
       if (story.id === storyId) {
-        return { ...story, isFollowing: !story.isFollowing };
+        const newFollowingStatus = !story.isFollowing;
+        
+        // Create notification if following (not unfollowing)
+        if (newFollowingStatus && currentUser && story.userId && story.userId !== currentUser.id) {
+          createFollowNotification(story);
+        }
+        
+        return { ...story, isFollowing: newFollowingStatus };
       }
       return story;
     });
     saveStories(updatedStories);
+  };
+
+  const createFollowNotification = async (story) => {
+    try {
+      const notification = {
+        id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'follow',
+        recipientId: story.userId,
+        senderId: currentUser.id,
+        senderName: currentUser.fullName || currentUser.name || 'Someone',
+        senderAvatar: currentUser.profileImage || null,
+        title: 'New Follower',
+        message: `${currentUser.fullName || currentUser.name} started following you`,
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const allNotifications = notifData ? JSON.parse(notifData) : [];
+      allNotifications.push(notification);
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(allNotifications));
+    } catch (error) {
+      console.error('Failed to create notification:', error);
+    }
   };
 
   const handlePickAudio = async () => {
@@ -419,6 +594,9 @@ export default function CommunityStoryScreen({ navigation }) {
     const updatedStories = [newStory, ...stories];
     await saveStories(updatedStories);
 
+    // Notify all users about new community story
+    await createCommunityStoryNotifications(newStory);
+
     // Reset form
     setStoryTitle('');
     setStoryDescription('');
@@ -427,6 +605,45 @@ export default function CommunityStoryScreen({ navigation }) {
     setSelectedFile(null);
     setShowUploadModal(false);
     Alert.alert('Success', 'Your story has been uploaded!');
+  };
+
+  // Create notifications for all users when a new community story is shared
+  const createCommunityStoryNotifications = async (story) => {
+    try {
+      const USERS_DB_KEY = '@echolingua_users_database';
+      
+      // Get all users
+      const usersData = await AsyncStorage.getItem(USERS_DB_KEY);
+      if (!usersData) return;
+      
+      const allUsers = JSON.parse(usersData);
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const allNotifications = notifData ? JSON.parse(notifData) : [];
+
+      // Create notification for each user except the author
+      for (const user of allUsers) {
+        if (user.id !== currentUser?.id && user.id !== 'current_user') {
+          const notification = {
+            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${user.id}`,
+            type: 'story',
+            recipientId: user.id,
+            senderId: currentUser?.id || 'unknown',
+            senderName: currentUser?.fullName || currentUser?.name || 'Someone',
+            senderAvatar: currentUser?.profileImage || null,
+            title: 'New Community Story',
+            message: `${currentUser?.fullName || currentUser?.name || 'Someone'} shared a new story: "${story.title}"`,
+            storyData: story,
+            timestamp: new Date().toISOString(),
+            read: false,
+          };
+          allNotifications.push(notification);
+        }
+      }
+
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(allNotifications));
+    } catch (error) {
+      console.error('Failed to create community story notifications:', error);
+    }
   };
 
   const handleAddComment = () => {
@@ -464,7 +681,7 @@ export default function CommunityStoryScreen({ navigation }) {
   const filteredStories = stories.filter((story) => {
     // Filter by tab
     if (filterTab === 'following' && !story.isFollowing) return false;
-    if (filterTab === 'popular' && story.likes < 100) return false;
+    if (filterTab === 'popular' && story.likes <= 100) return false;
 
     // Filter by search
     if (searchQuery) {
@@ -483,11 +700,24 @@ export default function CommunityStoryScreen({ navigation }) {
   const renderStoryCard = ({ item }) => {
     const isLiked = likedStories[item.id];
     const isCollected = collectedStories[item.id];
+  
     // Check if the story is posted by the current user
-    const isMe = currentUser && (
-       item.userId === currentUser.id || 
-       (item.userId === 'current_user')
+    // More robust checking with multiple conditions
+    const isMe = Boolean(
+      currentUser && item.userId && (
+        // Direct ID match (convert both to strings for comparison)
+        String(item.userId) === String(currentUser.id) ||
+        // Check if it's marked as current_user
+        item.userId === 'current_user' ||
+        // Check if current user ID is 'current_user' and story userId matches
+        (currentUser.id === 'current_user' && item.userId === 'current_user')
+      )
     );
+  
+    // Debug log (remove this after confirming it works)
+    if (__DEV__) {
+      console.log(`Story: ${item.title}, isMe: ${isMe}, item.userId: ${item.userId}, currentUser.id: ${currentUser?.id}`);
+    }
     
     return (
       <View 
@@ -633,8 +863,9 @@ export default function CommunityStoryScreen({ navigation }) {
             <Text style={[styles.actionText, { color: isCollected ? theme.primary : theme.textSecondary }]}>{item.bookmarks}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn}>
-            <Ionicons name="share-outline" size={22} color={theme.textSecondary} />
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleDownloadStoryPDF(item)}>
+            <Ionicons name="download-outline" size={22} color={theme.textSecondary} />
+            <Text style={[styles.actionText, { color: theme.textSecondary }]}>PDF</Text>
           </TouchableOpacity>
         </View>
       </View>

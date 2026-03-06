@@ -11,14 +11,30 @@ import { useTheme } from '../context/ThemeContext';
 
 const STORIES_STORAGE_KEY = '@echolingua_stories';
 const USER_STORAGE_KEY = '@echolingua_current_user';
+const SHARED_STORIES_KEY = '@echolingua_shared_stories';
+const USERS_DATABASE_KEY = '@echolingua_users_database';
 
 
 export default function StoryLibraryScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [createdStories, setCreatedStories] = useState([]);
-  const [activeTab, setActiveTab] = useState('library'); // 'library' | 'creations'
+  const [sharedStories, setSharedStories] = useState([]);
+  const [activeTab, setActiveTab] = useState('library'); // 'library' | 'creations' | 'shared'
   const [refreshing, setRefreshing] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Load current user
+  const loadCurrentUser = async () => {
+    try {
+      const userJson = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (userJson) {
+        setCurrentUser(JSON.parse(userJson));
+      }
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+    }
+  };
 
   // Load created/generated stories from AsyncStorage
   const loadCreatedStories = async () => {
@@ -31,22 +47,67 @@ export default function StoryLibraryScreen() {
     }
   };
 
+  // Load shared stories sent to current user
+  const loadSharedStories = async () => {
+    try {
+      if (!currentUser) {
+        setSharedStories([]);
+        return;
+      }
+
+      const sharedJson = await AsyncStorage.getItem(SHARED_STORIES_KEY);
+      const allSharedStories = sharedJson ? JSON.parse(sharedJson) : [];
+      
+      // Filter stories shared with current user
+      const myEmail = currentUser.email?.trim().toLowerCase();
+      const myUserId = currentUser.id;
+
+      const mySharedStories = allSharedStories.filter((story) => {
+        const emailMatch =
+          myEmail &&
+          Array.isArray(story.sharedWithEmails) &&
+          story.sharedWithEmails.some((email) => email?.trim().toLowerCase() === myEmail);
+
+        const userIdMatch =
+          myUserId &&
+          Array.isArray(story.sharedWithUserIds) &&
+          story.sharedWithUserIds.includes(myUserId);
+
+        return Boolean(emailMatch || userIdMatch);
+      });
+      
+      setSharedStories(mySharedStories);
+    } catch (error) {
+      console.error('Failed to load shared stories:', error);
+    }
+  };
+
   // Load stories when screen is focused
   useFocusEffect(
     React.useCallback(() => {
+      loadCurrentUser();
       loadCreatedStories();
     }, [])
   );
 
+  // Load shared stories when user is loaded
+  useEffect(() => {
+    if (currentUser) {
+      loadSharedStories();
+    }
+  }, [currentUser]);
+
   // Refresh handler
   const onRefresh = async () => {
     setRefreshing(true);
+    await loadCurrentUser();
     await loadCreatedStories();
+    await loadSharedStories();
     setRefreshing(false);
   };
 
   // Determine which list to show
-  const displayStories = activeTab === 'library' ? stories : createdStories;
+  const displayStories = activeTab === 'library' ? stories : (activeTab === 'creations' ? createdStories : sharedStories);
 
   const getLanguageFlag = (langName) => {
     if (!langName) return '🌏';
@@ -57,6 +118,7 @@ export default function StoryLibraryScreen() {
   const renderStoryItem = ({ item }) => {
     const isAiStory = !!item.isAiGenerated;
     const isCommunityRecording = !!item.audioUri && !item.isAiGenerated;
+    const isSharedStory = !!item.sharedBy;
     const itemFlag = getLanguageFlag(item.language);
     
     return (
@@ -89,14 +151,20 @@ export default function StoryLibraryScreen() {
         <View style={styles.contentContainer}>
           <View style={styles.headerRow}>
              <Text style={[styles.category, { color: theme.textSecondary, marginBottom: 0, marginRight: 8, fontSize: 11, fontWeight: '700' }]}>
-                {isCommunityRecording ? 'COMMUNITY' : (isAiStory ? 'AI TALE' : 'FOLKLORE')}
+                {isSharedStory ? 'SHARED' : (isCommunityRecording ? 'COMMUNITY' : (isAiStory ? 'AI TALE' : 'FOLKLORE'))}
              </Text>
              <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: theme.textSecondary, marginRight: 8 }} />
              <Text style={{ fontSize: 12, fontWeight: '600', color: theme.primary }}>
                {item.language || 'English'}
              </Text>
              <View style={{ flex: 1 }} />
-             {isAiStory && (
+             {isSharedStory && (
+               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.accent + '20', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 }}>
+                 <Ionicons name="people" size={10} color={theme.accent} />
+                 <Text style={{ fontSize: 10, color: theme.accent, marginLeft: 2, fontWeight: 'bold'}}>FROM {item.sharedBy}</Text>
+               </View>
+             )}
+             {isAiStory && !isSharedStory && (
                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primary + '20', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 }}>
                  <MaterialCommunityIcons name="robot" size={10} color={theme.primary} />
                  <Text style={{ fontSize: 10, color: theme.primary, marginLeft: 2, fontWeight: 'bold'}}>AI</Text>
@@ -155,7 +223,7 @@ export default function StoryLibraryScreen() {
 
       
       {/* TABS */}
-      <View style={{ flexDirection: 'row',     paddingHorizontal: SPACING.l, marginBottom: SPACING.m }}>
+      <View style={{ flexDirection: 'row', paddingHorizontal: SPACING.l, marginBottom: SPACING.m }}>
          <TouchableOpacity 
            style={{ paddingVertical: 12, marginRight: 24, borderBottomWidth: activeTab === 'library' ? 3 : 0, borderBottomColor: theme.primary }}
            onPress={() => setActiveTab('library')}
@@ -165,12 +233,27 @@ export default function StoryLibraryScreen() {
             </Text>
          </TouchableOpacity>
          <TouchableOpacity 
-           style={{  paddingVertical: 12, borderBottomWidth: activeTab === 'creations' ? 3 : 0, borderBottomColor: theme.primary }}
+           style={{ paddingVertical: 12, marginRight: 24, borderBottomWidth: activeTab === 'creations' ? 3 : 0, borderBottomColor: theme.primary }}
            onPress={() => setActiveTab('creations')}
          >
             <Text style={{ fontWeight: 'bold', fontSize: 16, color: activeTab === 'creations' ? theme.primary : theme.textSecondary }}>
                My Creations
             </Text>
+         </TouchableOpacity>
+         <TouchableOpacity 
+           style={{ paddingVertical: 12, borderBottomWidth: activeTab === 'shared' ? 3 : 0, borderBottomColor: theme.primary }}
+           onPress={() => setActiveTab('shared')}
+         >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 16, color: activeTab === 'shared' ? theme.primary : theme.textSecondary }}>
+                 Other Creation
+              </Text>
+              {sharedStories.length > 0 && (
+                <View style={{ marginLeft: 6, backgroundColor: theme.accent, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, minWidth: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>{sharedStories.length}</Text>
+                </View>
+              )}
+            </View>
          </TouchableOpacity>
       </View>
       
@@ -189,6 +272,13 @@ export default function StoryLibraryScreen() {
                 <MaterialCommunityIcons name="magic-staff" size={64} color={theme.textSecondary + '40'} />
                 <Text style={{ textAlign: 'center', marginTop: 16, color: theme.textSecondary }}>
                    You haven't created any stories yet. Start preserving your heritage today!
+                </Text>
+             </View>
+          ) : activeTab === 'shared' ? (
+             <View style={{ alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+                <Ionicons name="people-outline" size={64} color={theme.textSecondary + '40'} />
+                <Text style={{ textAlign: 'center', marginTop: 16, color: theme.textSecondary }}>
+                   No stories shared with you yet. Stories from your emergency contacts will appear here.
                 </Text>
              </View>
           ) : null

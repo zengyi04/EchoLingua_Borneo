@@ -41,7 +41,9 @@
       "favicon": "./assets/appLogo.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-video",
+      "expo-audio"
     ]
   }
 }

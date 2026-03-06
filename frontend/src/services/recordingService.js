@@ -28,12 +28,35 @@ export const prepareSingleRecording = async () => {
     // Expo allows only one prepared Recording instance at a time.
     await forceCleanupActiveRecording();
 
+    console.log('🎙️ Creating recording with HIGH_QUALITY preset...');
+    // Create and start the recording
     const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
+      Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      undefined,
+      100 // Update interval in milliseconds
     );
 
+    if (!recording) {
+      throw new Error('Recording object was not created');
+    }
+
+    // Verify recording is actually recording
+    const recordingStatus = await recording.getStatusAsync();
+    console.log('📊 Recording status:', recordingStatus);
+    
+    if (!recordingStatus.isRecording) {
+      console.log('⚠️ Recording created but not recording, starting now...');
+      await recording.startAsync();
+      const newStatus = await recording.getStatusAsync();
+      console.log('📊 New recording status after start:', newStatus);
+    }
+
     activeRecording = recording;
+    console.log('✅ Recording prepared and active');
     return recording;
+  } catch (error) {
+    console.error('❌ prepareSingleRecording error:', error);
+    throw error;
   } finally {
     preparing = false;
   }

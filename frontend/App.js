@@ -8,7 +8,7 @@ import { COLORS } from './src/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
-// Temporary: hide expo-av deprecation warning while audio screens are migrated to expo-audio.
+// Keep app logs clean while audio migration from expo-av is in progress.
 LogBox.ignoreLogs([
   '[expo-av]: Expo AV has been deprecated',
   'Expo AV has been deprecated',

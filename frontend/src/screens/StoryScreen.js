@@ -28,6 +28,7 @@ export default function StoryScreen() {
   const [selectedVoice, setSelectedVoice] = useState(null); // null = default TTS
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [showShareOptionsModal, setShowShareOptionsModal] = useState(false); // Three-option share modal
   const [playbackStatus, setPlaybackStatus] = useState({ position: 0, duration: 1 });
   const [progressBarWidth, setProgressBarWidth] = useState(0);
   const ttsInterval = React.useRef(null);
@@ -103,6 +104,103 @@ export default function StoryScreen() {
        duration: story.duration
     });
   };
+
+  // New handler: Share to Emergency Contact
+  const handleShareToEmergencyContact = async () => {
+    setShowShareOptionsModal(false);
+    
+    // Load current user
+    try {
+      const userJson = await AsyncStorage.getItem('@echolingua_current_user');
+      const currentUser = userJson ? JSON.parse(userJson) : null;
+      
+      if (!currentUser?.emergencyContacts || currentUser.emergencyContacts.length === 0) {
+        Alert.alert(
+          'No Contacts Added',
+          'You need to add emergency contacts first. Go to Profile > Emergency Contacts to add contacts.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Navigate to AIStoryGenerator with story data to share
+      navigation.navigate('AIStoryGenerator', {
+        storyToShare: {
+          id: story.id,
+          title: story.title,
+          description: story.description || story.summary,
+          text: story.transcript || buildReadableStoryText(),
+          language: story.language || 'English',
+          shareMode: 'emergency_contact'
+        }
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load contacts: ' + error.message);
+    }
+  };
+
+  // New handler: Save to My Creation 
+  const handleSaveToMyCreation = async () => {
+    setShowShareOptionsModal(false);
+    
+    try {
+      const storyToSave = {
+        id: story.id || Date.now().toString(),
+        title: story.title,
+        description: story.description || story.summary,
+        summary: story.description || story.summary,
+        text: story.transcript || buildReadableStoryText(),
+        language: story.language || 'English',
+        author: currentUser?.fullName || 'Guest',
+        authorEmail: currentUser?.email,
+        category: 'Saved',
+        savedAt: new Date().toISOString()
+      };
+
+      // Load existing stories
+      const storiesJson = await AsyncStorage.getItem(STORIES_STORAGE_KEY);
+      const existingStories = storiesJson ? JSON.parse(storiesJson) : [];
+
+      // Check if story already exists
+      const existingIndex = existingStories.findIndex(s => s.id === storyToSave.id);
+      if (existingIndex >= 0) {
+        Alert.alert('Already Saved', 'This story is already in your collection.');
+        return;
+      }
+
+      // Add new story
+      existingStories.push(storyToSave);
+      await AsyncStorage.setItem(STORIES_STORAGE_KEY, JSON.stringify(existingStories));
+
+      Alert.alert(
+        'Saved Successfully',
+        'Story saved to My Creations!',
+        [
+          { text: 'Go to Library', onPress: () => navigation.navigate('StoryLibrary') },
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save story: ' + error.message);
+    }
+  };
+
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Load current user
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem('@echolingua_current_user');
+        if (userJson) {
+          setCurrentUser(JSON.parse(userJson));
+        }
+      } catch (error) {
+        console.error('Failed to load current user:', error);
+      }
+    };
+    loadCurrentUser();
+  }, []);
 
   const handleDeleteStory = async () => {
     Alert.alert(
@@ -315,7 +413,7 @@ export default function StoryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header with Back Button */}
+      {/* Header with Back Button and Three Action Icons */}
       <View style={[styles.header, { backgroundColor: theme.background }]}>
          <TouchableOpacity
            onPress={() => {
@@ -340,14 +438,14 @@ export default function StoryScreen() {
             </View>
          </View>
          
-         {/* Options Menu Button - Only show for user's content (Community or AI Generated) */}
+         {/* More Options Menu - Only show for user's content (Community or AI Generated) */}
          {(isCommunityStory || story.isAiGenerated) && (
-            <TouchableOpacity 
-              onPress={() => setShowOptionsModal(true)}
-              style={{ padding: 8 }}
-            >
-              <Ionicons name="ellipsis-vertical" size={24} color={theme.text} />
-            </TouchableOpacity>
+           <TouchableOpacity 
+             onPress={() => setShowOptionsModal(true)}
+             style={{ padding: 8 }}
+           >
+             <Ionicons name="ellipsis-vertical" size={24} color={theme.text} />
+           </TouchableOpacity>
          )}
       </View>
 
@@ -651,10 +749,10 @@ export default function StoryScreen() {
                position: 'absolute', 
                top: 80, 
                right: 20, 
-               width: 180,
+               width: 220,
                backgroundColor: theme.surface, 
                borderRadius: 12, 
-               padding: 4,
+               padding: 8,
                shadowColor: "#000",
                shadowOffset: { width: 0, height: 2 },
                shadowOpacity: 0.25,
@@ -663,6 +761,19 @@ export default function StoryScreen() {
                borderWidth: 1,
                borderColor: theme.border
             }}>
+               {/* Share to Emergency Contact */}
+               <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: theme.border }}
+                  onPress={() => {
+                     setShowOptionsModal(false);
+                     handleShareToEmergencyContact();
+                  }}
+               >
+                  <Ionicons name="people" size={20} color={theme.primary} style={{ marginRight: 12 }} />
+                  <Text style={{ color: theme.text, fontSize: 14 }}>Share to Contact</Text>
+               </TouchableOpacity>
+
+               {/* Share to Community */}
                <TouchableOpacity 
                   style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: theme.border }}
                   onPress={() => {
@@ -670,10 +781,23 @@ export default function StoryScreen() {
                      handleShareToCommunity();
                   }}
                >
-                  <Ionicons name="share-social-outline" size={20} color={theme.text} style={{ marginRight: 12 }} />
-                  <Text style={{ color: theme.text, fontSize: 14 }}>Share</Text>
+                  <Ionicons name="share-social" size={20} color={theme.accent || theme.secondary} style={{ marginRight: 12 }} />
+                  <Text style={{ color: theme.text, fontSize: 14 }}>Share to Community</Text>
                </TouchableOpacity>
 
+               {/* Save to My Creation */}
+               <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: theme.border }}
+                  onPress={() => {
+                     setShowOptionsModal(false);
+                     handleSaveToMyCreation();
+                  }}
+               >
+                  <Ionicons name="bookmark" size={20} color={theme.secondary} style={{ marginRight: 12 }} />
+                  <Text style={{ color: theme.text, fontSize: 14 }}>Save to My Creations</Text>
+               </TouchableOpacity>
+
+               {/* Delete Story */}
                <TouchableOpacity 
                   style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}
                   onPress={() => {

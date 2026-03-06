@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, TextInput, Alert, FlatList, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, TextInput, Alert, FlatList, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -33,10 +33,12 @@ const LANGUAGE_GROUPS = [
 
 const RECORDINGS_STORAGE_KEY = '@echolingua_recordings';
 const STORIES_STORAGE_KEY = '@echolingua_stories';
-const COMMUNITY_STORIES_KEY = '@echolingua_stories'; // For StoryLibraryScreen (Community Archive)
+const COMMUNITY_STORIES_KEY = '@echolingua_stories'; // For StoryLibraryScreen (Other Library)
+const SHARED_STORIES_KEY = '@echolingua_shared_stories'; // For stories shared with emergency contacts
 const USERS_DB_KEY = '@echolingua_users_database';
 const USER_STORAGE_KEY = '@echolingua_current_user';
 const CONTACT_SHARES_KEY = '@echolingua_contact_shares';
+const NOTIFICATIONS_KEY = '@echolingua_notifications';
 
 export default function RecordScreen() {
   const { theme } = useTheme();
@@ -69,7 +71,9 @@ export default function RecordScreen() {
   
   // NEW: Story creation mode
   const [storyTitle, setStoryTitle] = useState('');
+  const [storyDescription, setStoryDescription] = useState('');
   const [isSavingStory, setIsSavingStory] = useState(false);
+  const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
   
   // NEW: Share to community modal states
   const [showShareModal, setShowShareModal] = useState(false);
@@ -80,7 +84,7 @@ export default function RecordScreen() {
   const [shareCategory, setShareCategory] = useState('Story');
   const [isSharingToCommunity, setIsSharingToCommunity] = useState(false);
   const [showShareRecipientModal, setShowShareRecipientModal] = useState(false);
-  const [shareRecipients, setShareRecipients] = useState(['community']);
+  const [shareRecipients, setShareRecipients] = useState([]);
   
   // NEW: Recipient selection
   const [showRecipientModal, setShowRecipientModal] = useState(false);
@@ -155,17 +159,47 @@ export default function RecordScreen() {
     loadUserData();
   }, []);
 
-  // Initialize audio mode
+  // Reload user data when screen comes into focus to get updated emergency contacts
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserData();
+    }, [])
+  );
+
+  // Initialize audio mode and request permissions on mount
   useEffect(() => {
     (async () => {
       try {
-        await Audio.requestPermissionsAsync();
+        console.log('🔊 Initializing audio system...');
+        
+        // Request permissions on mount
+        const { status, canAskAgain, granted } = await Audio.requestPermissionsAsync();
+        console.log('🔐 Permission status:', { status, canAskAgain, granted });
+        
+        if (status !== 'granted') {
+          console.error('❌ Audio permission not granted:', status);
+          if (!canAskAgain) {
+            Alert.alert(
+              'Permission Required',
+              'Microphone permission was denied. Please enable it in your device settings to use recording features.',
+              [{ text: 'OK' }]
+            );
+          }
+          return;
+        }
+        
+        console.log('✅ Audio permission granted, setting audio mode...');
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
         });
+        console.log('✅ Audio mode set successfully');
       } catch (error) {
-        console.error('Failed to initialize audio:', error);
+        console.error('❌ Failed to initialize audio:', error);
+        Alert.alert('Audio Setup Error', 'Failed to initialize audio system. Recording may not work properly.');
       }
     })();
 
@@ -321,6 +355,73 @@ export default function RecordScreen() {
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
+    }
+  };
+
+  // Function to create notifications for emergency contacts when story is shared
+  const createEmergencyContactNotifications = async (sharedStory, emergencyContacts) => {
+    try {
+      if (!currentUser) return;
+      
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const existingNotifications = notifData ? JSON.parse(notifData) : [];
+
+      // Create notification for each emergency contact
+      const newNotifications = emergencyContacts
+        .filter(contact => contact.appUser && contact.appUser.id) // Only contacts with app access
+        .map(contact => ({
+          id: `notif_${Date.now()}_${contact.appUser.id}_${Math.random()}`,
+          type: 'shared_story',
+          recipientId: contact.appUser.id,
+          senderId: currentUser.id,
+          senderName: currentUser.fullName || 'Someone',
+          title: `${currentUser.fullName || 'Someone'} shared a story with you`,
+          message: `"${sharedStory.title}" - Check Other Creation section`,
+          storyData: sharedStory,
+          timestamp: new Date().toISOString(),
+          read: false,
+        }));
+
+      const updatedNotifications = [...newNotifications, ...existingNotifications];
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
+      console.log(`✅ Created ${newNotifications.length} notifications for emergency contacts`);
+    } catch (error) {
+      console.error('❌ Failed to create emergency contact notifications:', error);
+    }
+  };
+
+  // Function to create notifications for all users when story is shared to community
+  const createCommunityStoryNotifications = async (story) => {
+    try {
+      if (!currentUser) return;
+      
+      const usersJson = await AsyncStorage.getItem(USERS_DB_KEY);
+      const allUsers = usersJson ? JSON.parse(usersJson) : [];
+      
+      const notifData = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const existingNotifications = notifData ? JSON.parse(notifData) : [];
+
+      // Create notification for each user except the author
+      const newNotifications = allUsers
+        .filter(user => user.id !== currentUser.id) // Exclude story author
+        .map(user => ({
+          id: `notif_${Date.now()}_${user.id}_${Math.random()}`,
+          type: 'story',
+          recipientId: user.id,
+          senderId: currentUser.id,
+          senderName: currentUser.fullName || 'Someone',
+          title: 'New Community Story',
+          message: `${currentUser.fullName || 'Someone'} shared: "${story.title}"`,
+          storyData: story,
+          timestamp: new Date().toISOString(),
+          read: false,
+        }));
+
+      const updatedNotifications = [...newNotifications, ...existingNotifications];
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
+      console.log(`✅ Created ${newNotifications.length} notifications for community story`);
+    } catch (error) {
+      console.error('❌ Failed to create community story notifications:', error);
     }
   };
 
@@ -500,6 +601,7 @@ export default function RecordScreen() {
       const explicitlySelectedContacts = emergencyContactsWithApp.filter((contact) =>
         shareRecipients.includes(getContactRecipientKey(contact))
       );
+      const myStoriesSelected = shareRecipients.includes('my_stories');
       const communitySelected = shareRecipients.includes('community');
       const selectedEmergencyContacts = [...explicitlySelectedContacts].filter(
         (contact, index, arr) => {
@@ -514,10 +616,10 @@ export default function RecordScreen() {
         }
       );
 
-      if (!communitySelected && selectedEmergencyContacts.length === 0) {
+      if (!myStoriesSelected && !communitySelected && selectedEmergencyContacts.length === 0) {
         Alert.alert(
           'Recipient Required',
-          'Choose Community Archive and/or at least one emergency contact app user.'
+          'Choose at least one option: My Creations, Community Story, or Emergency Contact.'
         );
         playSound('incorrect');
         setIsSharingToCommunity(false);
@@ -528,10 +630,12 @@ export default function RecordScreen() {
         id: Date.now().toString(),
         title: recordingForShare.title,
         description: recordingForShare.description || '',
+        summary: recordingForShare.description || recordingForShare.transcript?.substring(0, 150) || '',
         transcript: recordingForShare.transcript,
         author: currentUser?.fullName || 'Unknown User',
         userId: currentUser?.id || null,
         authorId: currentUser?.id || null,
+        authorEmail: currentUser?.email || null,
         authorRole: currentUser?.role || 'learner',
         senderHasAppAccount: Boolean(currentUser?.id),
         sentByLabel: currentUser?.fullName
@@ -558,14 +662,28 @@ export default function RecordScreen() {
         })),
       };
 
+      // Save to My Creations (My Creation in Story Library)
+      if (myStoriesSelected) {
+        const existingMyStoriesRaw = await AsyncStorage.getItem(STORIES_STORAGE_KEY);
+        const existingMyStories = existingMyStoriesRaw ? JSON.parse(existingMyStoriesRaw) : [];
+        const updatedMyStories = [newStory, ...existingMyStories];
+        await AsyncStorage.setItem(STORIES_STORAGE_KEY, JSON.stringify(updatedMyStories));
+      }
+
+      // Save to Community Story
       if (communitySelected) {
         const existingCommunityStoriesRaw = await AsyncStorage.getItem(COMMUNITY_STORIES_KEY);
         const existingCommunityStories = existingCommunityStoriesRaw ? JSON.parse(existingCommunityStoriesRaw) : [];
         const updatedCommunityStories = [newStory, ...existingCommunityStories];
         await AsyncStorage.setItem(COMMUNITY_STORIES_KEY, JSON.stringify(updatedCommunityStories));
+
+        // Create notifications for all users about new community story
+        await createCommunityStoryNotifications(newStory);
       }
 
+      // Share to Emergency Contacts (Other Creation)
       if (selectedEmergencyContacts.length > 0) {
+        // Save to contact share tracking
         const existingShares = await AsyncStorage.getItem(CONTACT_SHARES_KEY);
         const parsedShares = existingShares ? JSON.parse(existingShares) : [];
         const deliveries = selectedEmergencyContacts.map((contact) => ({
@@ -580,24 +698,29 @@ export default function RecordScreen() {
         }));
         await AsyncStorage.setItem(CONTACT_SHARES_KEY, JSON.stringify([...deliveries, ...parsedShares]));
 
-        for (const contact of selectedEmergencyContacts) {
-          if (!contact.appUser?.id) {
-            continue;
-          }
+        // Save to shared stories so recipients can see in "Other Creation" tab
+        const contactEmails = selectedEmergencyContacts
+          .filter(contact => contact.appUser && contact.appUser.email)
+          .map(contact => contact.appUser.email);
 
-          const recipientStory = {
+        if (contactEmails.length > 0) {
+          const sharedJson = await AsyncStorage.getItem(SHARED_STORIES_KEY);
+          const existingShared = sharedJson ? JSON.parse(sharedJson) : [];
+
+          const sharedStory = {
             ...newStory,
-            id: `${newStory.id}-to-${contact.appUser.id}`,
-            sharedViaEmergency: true,
-            toUserId: contact.appUser.id,
-            toUserName: contact.appUser.fullName,
-            receivedAt: new Date().toISOString(),
+            sharedBy: currentUser?.fullName || 'Anonymous',
+            sharedByEmail: currentUser?.email || null,
+            sharedWithEmails: contactEmails,
+            sharedAt: new Date().toISOString(),
           };
 
-          const recipientArchiveKey = `@echolingua_received_stories_${contact.appUser.id}`;
-          const existingRecipientStories = await AsyncStorage.getItem(recipientArchiveKey);
-          const parsedRecipientStories = existingRecipientStories ? JSON.parse(existingRecipientStories) : [];
-          await AsyncStorage.setItem(recipientArchiveKey, JSON.stringify([recipientStory, ...parsedRecipientStories]));
+          const updatedShared = [sharedStory, ...existingShared];
+          await AsyncStorage.setItem(SHARED_STORIES_KEY, JSON.stringify(updatedShared));
+          console.log(`✅ Story shared with ${contactEmails.length} emergency contacts (Other Creation)`);
+          
+          // Create notifications for emergency contacts
+          await createEmergencyContactNotifications(sharedStory, selectedEmergencyContacts);
         }
       }
 
@@ -605,30 +728,80 @@ export default function RecordScreen() {
       playSound('complete');
 
       const recipientSummary = [];
+      if (myStoriesSelected) {
+        recipientSummary.push('My Creations');
+      }
       if (communitySelected) {
-        recipientSummary.push('Community Archive');
+        recipientSummary.push('Community Story');
       }
       if (selectedEmergencyContacts.length > 0) {
-        recipientSummary.push(`${selectedEmergencyContacts.length} Emergency Contact(s)`);
+        recipientSummary.push(`${selectedEmergencyContacts.length} Emergency Contact(s) - Other Creation`);
       }
 
-      Alert.alert(
-        'Shared Successfully! 🎉',
-        `"${shareTitle}" was shared with: ${recipientSummary.join(', ')}\n\n${newStory.sentByLabel}`,
-        [
-          {
-            text: 'View in Library',
-            onPress: () => {
-              setShowShareModal(false);
-              navigation.navigate('MainTabs', { screen: 'StoriesTab' });
+      // Determine navigation based on what was selected
+      if (communitySelected) {
+        // Navigate to Community Story
+        Alert.alert(
+          'Shared Successfully! 🎉',
+          `"${shareTitle}" has been saved to Community Story.\n\n${newStory.sentByLabel}`,
+          [
+            {
+              text: 'View Community',
+              onPress: () => {
+                setShowShareModal(false);
+                navigation.navigate('CommunityStory');
+              }
+            },
+            {
+              text: 'OK',
+              onPress: () => setShowShareModal(false)
             }
-          },
-          {
-            text: 'OK',
-            onPress: () => setShowShareModal(false)
-          }
-        ]
-      );
+          ]
+        );
+      } else if (myStoriesSelected) {
+        // Navigate to My Stories (Story Library)
+        Alert.alert(
+          'Shared Successfully! 🎉',
+          `"${shareTitle}" has been saved to My Creations.\n\n${newStory.sentByLabel}`,
+          [
+            {
+              text: 'View My Stories',
+              onPress: () => {
+                setShowShareModal(false);
+                navigation.navigate('MainTabs', { screen: 'StoriesTab' });
+              }
+            },
+            {
+              text: 'OK',
+              onPress: () => setShowShareModal(false)
+            }
+          ]
+        );
+      } else if (selectedEmergencyContacts.length > 0) {
+        // Emergency contacts only - no navigation
+        Alert.alert(
+          'Shared Successfully! 🎉',
+          `"${shareTitle}" has been shared with ${selectedEmergencyContacts.length} emergency contact(s).\n\n${newStory.sentByLabel}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => setShowShareModal(false)
+            }
+          ]
+        );
+      } else {
+        // Fallback (shouldn't happen)
+        Alert.alert(
+          'Shared Successfully! 🎉',
+          `"${shareTitle}" has been saved${recipientSummary.length > 0 ? ' to: ' + recipientSummary.join(', ') : ''}.\n\n${newStory.sentByLabel}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => setShowShareModal(false)
+            }
+          ]
+        );
+      }
 
       // Reset modal
       setShowShareRecipientModal(false);
@@ -653,26 +826,55 @@ export default function RecordScreen() {
 
     if (!isRecording) {
       try {
+        // Check if running on web
+        if (Platform.OS === 'web') {
+          Alert.alert(
+            'Recording Not Supported on Web',
+            'Audio recording is not available on web browsers. Please use the mobile app or upload an existing audio file instead.',
+            [
+              { text: 'Upload File', onPress: () => handlePickAudioFile() },
+              { text: 'OK', style: 'cancel' }
+            ]
+          );
+          return;
+        }
+        
         isRecordingActionInFlightRef.current = true;
         console.log('🔴 Starting recording...');
         
-        // Request permissions
+        // Request and verify permissions
+        console.log('🔐 Requesting microphone permissions...');
         const permission = await Audio.requestPermissionsAsync();
+        console.log('🔐 Permission result:', permission);
+        
         if (permission.status !== 'granted') {
-          console.log('❌ Permission denied');
-          Alert.alert('Permission Required', 'Please grant microphone permission to record audio.');
+          console.log('❌ Permission denied:', permission);
+          Alert.alert(
+            'Permission Required',
+            permission.canAskAgain 
+              ? 'Microphone permission is required to record audio. Please grant permission when prompted.'
+              : 'Microphone permission was denied. Please enable it in your device settings to use recording features.',
+            [{ text: 'OK' }]
+          );
           return;
         }
 
-        console.log('✅ Permission granted, setting up audio...');
+        console.log('✅ Permission granted! Setting up audio mode...');
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
           staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
         });
+        console.log('✅ Audio mode configured');
 
         console.log('📱 Creating recording...');
         const newRecording = await prepareSingleRecording();
+        
+        if (!newRecording) {
+          throw new Error('Failed to create recording object');
+        }
         
         console.log('✅ Recording created successfully!');
         playSound('start');
@@ -1103,8 +1305,14 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
     }, 2500);
   };
 
-  // NEW: Save recording as story for community archive
+  // NEW: Save recording as story for other library
   const handleSaveAsStory = async () => {
+    // Open modal to enter title and description
+    setShowCreateStoryModal(true);
+  };
+  
+  // NEW: Validate and proceed to recipient selection
+  const handleProceedToRecipients = () => {
     if (!storyTitle.trim()) {
       Alert.alert('Title Required', 'Please enter a title for your story');
       return;
@@ -1115,7 +1323,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
       return;
     }
     
-    // Show recipient selection modal
+    // Close title/description modal and show recipient selection
+    setShowCreateStoryModal(false);
     setShowRecipientModal(true);
   };
   
@@ -1134,6 +1343,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
       const newStory = {
         id: Date.now().toString(),
         title: storyTitle.trim(),
+        description: storyDescription.trim() || transcript.substring(0, 150),
+        summary: storyDescription.trim() || transcript.substring(0, 150),
         audioUri: recordingUri,
         transcript: transcript,
         language: WORLD_LANGUAGES.find(l => l.id === selectedLanguage)?.label || 'Unknown',
@@ -1142,10 +1353,11 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
         createdAt: new Date().toISOString(),
         category: 'Community Contribution',
         author: currentUser?.fullName || 'Anonymous',
+        authorEmail: currentUser?.email || null,
         authorId: currentUser?.id || null,
         authorRole: currentUser?.role || 'learner',
         recipients: selectedRecipients,
-        sharedWith: selectedRecipients.includes('community') ? 'Community Archive' : 
+        sharedWith: selectedRecipients.includes('community') ? 'Other Library' : 
                      selectedRecipients.includes('private') ? 'Private Library' : 
                      'Emergency Contacts',
       };
@@ -1154,18 +1366,23 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
       const updatedStories = [newStory, ...existingStories];
       await AsyncStorage.setItem(STORIES_STORAGE_KEY, JSON.stringify(updatedStories));
 
+      // Save to shared stories if emergency contacts are selected
+      const emergencyContactIds = selectedRecipients.filter(r => r !== 'community' && r !== 'private');
+      if (emergencyContactIds.length > 0) {
+        await saveSharedStoriesToContacts(newStory, emergencyContactIds);
+      }
+
       console.log('✅ Story saved successfully!');
       playSound('complete');
 
       // Build recipient message
       let recipientMsg = '';
       if (selectedRecipients.includes('community')) {
-        recipientMsg = 'Shared to Community Archive. ';
+        recipientMsg = 'Shared to Other Library. ';
       }
       if (selectedRecipients.includes('private')) {
         recipientMsg += 'Saved to your Private Library. ';
       }
-      const emergencyContactIds = selectedRecipients.filter(r => r !== 'community' && r !== 'private');
       if (emergencyContactIds.length > 0) {
         recipientMsg += `Sent to ${emergencyContactIds.length} emergency contact(s). `;
       }
@@ -1185,6 +1402,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
 
       // Reset form
       setStoryTitle('');
+      setStoryDescription('');
       setTranscript('');
       setRecordingUri(null);
       setHasRecording(false);
@@ -1197,6 +1415,50 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
       Alert.alert('Save Failed', 'Could not save your story. Please try again.');
     } finally {
       setIsSavingStory(false);
+    }
+  };
+
+  // NEW: Save shared stories with emergency contact emails
+  const saveSharedStoriesToContacts = async (story, contactIds) => {
+    try {
+      // Get all users database to find emergency contact emails
+      const usersJson = await AsyncStorage.getItem(USERS_DB_KEY);
+      const allUsers = usersJson ? JSON.parse(usersJson) : [];
+
+      // Get emergency contacts emails
+      const contactEmails = [];
+      for (const contactId of contactIds) {
+        const contact = emergencyContactsWithApp.find(c => getContactRecipientKey(c) === contactId);
+        if (contact && contact.appUser && contact.appUser.email) {
+          contactEmails.push(contact.appUser.email);
+        }
+      }
+
+      if (contactEmails.length === 0) {
+        console.log('⚠️ No valid emergency contact emails found');
+        return;
+      }
+
+      // Load existing shared stories
+      const sharedJson = await AsyncStorage.getItem(SHARED_STORIES_KEY);
+      const existingShared = sharedJson ? JSON.parse(sharedJson) : [];
+
+      // Create shared story object
+      const sharedStory = {
+        ...story,
+        sharedBy: currentUser?.fullName || 'Anonymous',
+        sharedByEmail: currentUser?.email || null,
+        sharedWithEmails: contactEmails,
+        sharedAt: new Date().toISOString(),
+      };
+
+      // Add to shared stories
+      const updatedShared = [sharedStory, ...existingShared];
+      await AsyncStorage.setItem(SHARED_STORIES_KEY, JSON.stringify(updatedShared));
+      
+      console.log(`✅ Story shared with ${contactEmails.length} emergency contacts`);
+    } catch (error) {
+      console.error('❌ Failed to save shared stories:', error);
     }
   };
 
@@ -1568,41 +1830,24 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                 />
               </ScrollView>
 
-              {/* Story Creation Mode: Title Input and Save Button */}
-              {isStoryMode && (
-                <View style={styles.storyCreationSection}>
-                  <View style={styles.storyInputHeader}>
-                    <MaterialCommunityIcons name="book-edit" size={24} color={theme.secondary} />
-                    <Text style={[styles.storyInputLabel, { color: theme.text }]}>Story Title</Text>
-                  </View>
-                  <TextInput
-                    style={[
-                      styles.storyTitleInput, 
-                      { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }
-                    ]}
-                    value={storyTitle}
-                    onChangeText={setStoryTitle}
-                    placeholder="Enter a title for your folktale..."
-                    placeholderTextColor={theme.textSecondary}
-                    maxLength={100}
+              {/* Create Story Button - Always available after transcript */}
+              <View style={styles.storyCreationSection}>
+                <TouchableOpacity
+                  style={[styles.saveStoryButton, isSavingStory && styles.saveStoryButtonDisabled, { backgroundColor: theme.secondary }]}
+                  onPress={handleSaveAsStory}
+                  disabled={isSavingStory}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons 
+                    name={isSavingStory ? "loading" : "book-plus"} 
+                    size={24} 
+                    color={theme.onPrimary || '#FFFFFF'} 
                   />
-                  <TouchableOpacity
-                    style={[styles.saveStoryButton, isSavingStory && styles.saveStoryButtonDisabled, { backgroundColor: theme.secondary }]}
-                    onPress={handleSaveAsStory}
-                    disabled={isSavingStory}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialCommunityIcons 
-                      name={isSavingStory ? "loading" : "cloud-upload"} 
-                      size={24} 
-                      color={theme.onPrimary || '#FFFFFF'} 
-                    />
-                    <Text style={[styles.saveStoryButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>
-                      {isSavingStory ? 'Saving to Archive...' : 'Publish to Community Archive'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                  <Text style={[styles.saveStoryButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>
+                    {isSavingStory ? 'Creating Story...' : 'Create Story'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -1715,13 +1960,14 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                           marginHorizontal: 8
                         }}
                         onPress={() => {
-                          // Navigate to Community Screen with pre-filled audio data
-                          navigation.navigate('CommunityStory', { 
-                             audioUri: item.uri, 
-                             duration: item.duration,
-                             transcript: item.transcript,
-                             fileName: item.fileName || `Recording ${new Date(item.timestamp).toLocaleDateString()}`
-                          });
+                          // Open share modal with title/description entry
+                          setSelectedRecordingToShare(item);
+                          setShareTitle(item.title || '');
+                          setShareDescription(item.description || '');
+                          setShareTranscript(item.transcript || '');
+                          setShareCategory('Story');
+                          setShowShareModal(true);
+                          playSound('select');
                         }}
                         activeOpacity={0.7}
                       >
@@ -1956,7 +2202,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
             <View style={[styles.shareModalHeader, { borderBottomColor: theme.border }]}> 
               <View>
                 <Text style={[styles.shareModalTitle, { color: theme.text }]}>Choose Recipients</Text>
-                <Text style={[styles.shareModalSubtitle, { color: theme.textSecondary }]}>Select Community Archive and/or Emergency Contacts</Text>
+                <Text style={[styles.shareModalSubtitle, { color: theme.textSecondary }]}>Select where to save and share your recording</Text>
               </View>
               <TouchableOpacity style={styles.closeModalButton} onPress={() => setShowShareRecipientModal(false)}>
                 <Ionicons name="close-circle" size={32} color={theme.textSecondary} />
@@ -1964,6 +2210,30 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
             </View>
 
             <ScrollView style={styles.recipientModalContent} showsVerticalScrollIndicator={false}>
+              {/* My Creations Option */}
+              <TouchableOpacity
+                style={[
+                  styles.recipientOption,
+                  { backgroundColor: theme.glassMedium, borderColor: theme.border },
+                  shareRecipients.includes('my_stories') && [styles.recipientOptionActive, { borderColor: theme.primary, backgroundColor: theme.primary + '10' }],
+                ]}
+                onPress={() => toggleShareRecipient('my_stories')}
+              >
+                <View style={[styles.recipientIconContainer, { backgroundColor: theme.secondary + '20' }]}>
+                  <Ionicons name="book" size={24} color={theme.secondary} />
+                </View>
+                <View style={styles.recipientInfo}>
+                  <Text style={[styles.recipientTitle, { color: theme.text }]}>My Creations</Text>
+                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Save to Story Library (My Creation)</Text>
+                </View>
+                <Ionicons
+                  name={shareRecipients.includes('my_stories') ? 'checkbox' : 'square-outline'}
+                  size={28}
+                  color={shareRecipients.includes('my_stories') ? theme.primary : theme.textSecondary}
+                />
+              </TouchableOpacity>
+
+              {/* Community Story Option */}
               <TouchableOpacity
                 style={[
                   styles.recipientOption,
@@ -1976,8 +2246,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   <Ionicons name="globe" size={24} color={theme.primary} />
                 </View>
                 <View style={styles.recipientInfo}>
-                  <Text style={[styles.recipientTitle, { color: theme.text }]}>Community Archive</Text>
-                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Share to your own community archive.</Text>
+                  <Text style={[styles.recipientTitle, { color: theme.text }]}>Community Story</Text>
+                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Share with community for cultural preservation</Text>
                 </View>
                 <Ionicons
                   name={shareRecipients.includes('community') ? 'checkbox' : 'square-outline'}
@@ -1987,15 +2257,15 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
               </TouchableOpacity>
 
               <View style={styles.sectionDivider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.sectionDividerText}>Emergency Contacts With App</Text>
-                <View style={styles.dividerLine} />
+                <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+                <Text style={[styles.sectionDividerText, { color: theme.textSecondary }]}>Emergency Contacts (Other Creation)</Text>
+                <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
               </View>
 
               {emergencyContactsWithApp.length === 0 && (
-                <View style={styles.noContactsBanner}>
+                <View style={[styles.noContactsBanner, { backgroundColor: theme.glassMedium }]}>
                   <Ionicons name="people-outline" size={24} color={theme.textSecondary} />
-                  <Text style={styles.noContactsText}>No emergency contacts with app account found.</Text>
+                  <Text style={[styles.noContactsText, { color: theme.textSecondary }]}>No emergency contacts with app account found.</Text>
                 </View>
               )}
 
@@ -2110,7 +2380,7 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                 />
               </TouchableOpacity>
 
-              {/* Community Archive Option */}
+              {/* Other Library Option */}
               <TouchableOpacity
                 style={[
                   styles.recipientOption,
@@ -2129,8 +2399,8 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                   <Ionicons name="globe" size={24} color={theme.primary} />
                 </View>
                 <View style={styles.recipientInfo}>
-                  <Text style={[styles.recipientTitle, { color: theme.text }]}>Community Archive</Text>
-                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Share with the entire community for cultural preservation</Text>
+                  <Text style={[styles.recipientTitle, { color: theme.text }]}>Other Library</Text>
+                  <Text style={[styles.recipientDescription, { color: theme.textSecondary }]}>Share to other library for cultural preservation</Text>
                 </View>
                 <Ionicons
                   name={selectedRecipients.includes('community') ? 'checkbox' : 'square-outline'}
@@ -2143,9 +2413,9 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
               {emergencyContactsWithApp.length > 0 && (
                 <>
                   <View style={styles.sectionDivider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.sectionDividerText}>Emergency Contacts (App Users)</Text>
-                    <View style={styles.dividerLine} />
+                    <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+                    <Text style={[styles.sectionDividerText, { color: theme.textSecondary }]}>Emergency Contacts (App Users)</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
                   </View>
 
                   {emergencyContactsWithApp.map((contact, index) => (
@@ -2223,6 +2493,91 @@ ${recordingTime >= 30 ? '\n⭐ Excellent! Detailed recording provides high-quali
                 Save & Share ({selectedRecipients.length})
               </Text>
               <Ionicons name="checkmark-circle" size={24} color={theme.onPrimary || '#FFFFFF'} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create Story Modal - Title and Description */}
+      <Modal
+        visible={showCreateStoryModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateStoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.recipientModalContainer, { backgroundColor: theme.surface }]}>
+            <View style={[styles.shareModalHeader, { borderBottomColor: theme.border }]}>
+              <View>
+                <Text style={[styles.shareModalTitle, { color: theme.text }]}>Create Story</Text>
+                <Text style={[styles.shareModalSubtitle, { color: theme.textSecondary }]}>Add details about your recording</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeModalButton}
+                onPress={() => setShowCreateStoryModal(false)}
+              >
+                <Ionicons name="close-circle" size={32} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.recipientModalContent} showsVerticalScrollIndicator={false}>
+              {/* Title Input */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>
+                  Story Title <Text style={[styles.required, { color: theme.error }]}>*</Text>
+                </Text>
+                <TextInput
+                  style={[styles.shareInput, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
+                  placeholder="Enter a title for your story..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={storyTitle}
+                  onChangeText={setStoryTitle}
+                  maxLength={100}
+                  autoFocus
+                />
+                <Text style={[styles.characterCount, { color: theme.textSecondary }]}>{storyTitle.length}/100</Text>
+              </View>
+
+              {/* Description Input */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>Description (Optional)</Text>
+                <TextInput
+                  style={[styles.shareInput, styles.shareTextArea, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
+                  placeholder="Describe your story, add cultural context, or share its significance..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={storyDescription}
+                  onChangeText={setStoryDescription}
+                  multiline
+                  numberOfLines={5}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+                <Text style={[styles.characterCount, { color: theme.textSecondary }]}>{storyDescription.length}/500</Text>
+              </View>
+
+              {/* Info Banner */}
+              <View style={[styles.authorLabelBanner, { backgroundColor: theme.primary + '20' }]}>
+                <Ionicons name="information-circle" size={20} color={theme.primary} />
+                <Text style={[styles.authorLabelText, { color: theme.text }]}>
+                  Next, you'll choose where to save and share your story
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Continue Button */}
+            <TouchableOpacity
+              style={[
+                styles.saveRecipientButton,
+                !storyTitle.trim() && styles.saveRecipientButtonDisabled,
+                { backgroundColor: theme.primary }
+              ]}
+              onPress={handleProceedToRecipients}
+              disabled={!storyTitle.trim()}
+            >
+              <Text style={[styles.saveRecipientButtonText, { color: theme.onPrimary || '#FFFFFF' }]}>
+                Continue to Sharing Options
+              </Text>
+              <Ionicons name="arrow-forward-circle" size={24} color={theme.onPrimary || '#FFFFFF'} />
             </TouchableOpacity>
           </View>
         </View>
@@ -3008,6 +3363,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: SPACING.s,
+  },
+  required: {
+    color: COLORS.error,
+    fontWeight: 'bold',
   },
   shareInput: {
     backgroundColor: COLORS.inputBackground,

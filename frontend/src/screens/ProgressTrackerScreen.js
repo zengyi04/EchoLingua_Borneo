@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -57,10 +59,109 @@ export default function ProgressTrackerScreen({ navigation, route }) {
   ]);
 
   const [selectedTab, setSelectedTab] = useState('overview'); // overview, achievements, stats
+  const [canCheckIn, setCanCheckIn] = useState(true);
+  const [checkedInToday, setCheckedInToday] = useState(false);
+  const checkInScale = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
     loadProgressData();
+    checkDailyCheckIn();
   }, []);
+
+  const checkDailyCheckIn = async () => {
+    try {
+      const lastCheckIn = await AsyncStorage.getItem('@last_check_in_date');
+      const today = new Date().toDateString();
+      
+      if (lastCheckIn === today) {
+        setCheckedInToday(true);
+        setCanCheckIn(false);
+      } else {
+        setCheckedInToday(false);
+        setCanCheckIn(true);
+      }
+    } catch (error) {
+      console.error('Error checking daily check-in:', error);
+    }
+  };
+
+  const handleDailyCheckIn = async () => {
+    if (!canCheckIn || checkedInToday) {
+      Alert.alert(
+        'Already Checked In',
+        'You have already checked in today. Come back tomorrow for your next reward! 🎁'
+      );
+      return;
+    }
+
+    // Animate button press
+    Animated.sequence([
+      Animated.timing(checkInScale, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(checkInScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    try {
+      const today = new Date().toDateString();
+      const POINTS_REWARD = 50; // Points awarded for daily check-in
+      const XP_REWARD = 25; // XP awarded for daily check-in
+      
+      // Update check-in date
+      await AsyncStorage.setItem('@last_check_in_date', today);
+      
+      // Award points and XP
+      const currentXP = progressData.xp;
+      const newXP = currentXP + XP_REWARD;
+      
+      // Load and update user data
+      const userDataStr = await AsyncStorage.getItem('@echolingua_current_user');
+      if (userDataStr) {
+        const userData = JSON.parse(userDataStr);
+        const currentPoints = userData.points || 0;
+        userData.points = currentPoints + POINTS_REWARD;
+        await AsyncStorage.setItem('@echolingua_current_user', JSON.stringify(userData));
+        
+        // Update users database
+        const usersDbStr = await AsyncStorage.getItem('@echolingua_users_database');
+        if (usersDbStr) {
+          const usersDb = JSON.parse(usersDbStr);
+          const userIndex = usersDb.findIndex(u => u.id === userData.id);
+          if (userIndex !== -1) {
+            usersDb[userIndex].points = userData.points;
+            await AsyncStorage.setItem('@echolingua_users_database', JSON.stringify(usersDb));
+          }
+        }
+      }
+      
+      // Update state
+      setProgressData(prev => ({
+        ...prev,
+        xp: newXP,
+      }));
+      setCheckedInToday(true);
+      setCanCheckIn(false);
+      
+      // Show success alert
+      Alert.alert(
+        '🎉 Daily Check-In Complete!',
+        `Great job! You earned:\n\n🎁 ${POINTS_REWARD} Points\n⭐ ${XP_REWARD} XP\n🔥 Streak maintained!\n\nKeep learning every day to maintain your streak!`,
+        [{ text: 'Awesome!' }]
+      );
+      
+      // Reload progress data to update streak
+      await loadProgressData();
+    } catch (error) {
+      console.error('Error handling daily check-in:', error);
+      Alert.alert('Error', 'Failed to process check-in. Please try again.');
+    }
+  };
 
   const loadProgressData = async () => {
     try {
@@ -71,6 +172,7 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       const storiesStr = await AsyncStorage.getItem('@echolingua_stories');
       const lastActive = await AsyncStorage.getItem('@lastActiveDate');
       const learningTimeStr = await AsyncStorage.getItem('@total_learning_time');
+      const pronunciationAttemptsStr = await AsyncStorage.getItem('@echolingua_pronunciation_attempts');
 
       let vocabCount = 0;
       let totalQuizzes = 0;
@@ -92,11 +194,29 @@ export default function ProgressTrackerScreen({ navigation, route }) {
         });
       }
 
-      // Load scenario/pronunciation scores
+      // Load pronunciation attempts from vocabulary practice
+      if (pronunciationAttemptsStr) {
+        const allAttempts = JSON.parse(pronunciationAttemptsStr);
+        // Filter attempts for current user
+        const userAttempts = allAttempts.filter(attempt => attempt.userId === currentUser.id);
+        pronunciationCount = userAttempts.length;
+        
+        // Calculate average accuracy
+        if (pronunciationCount > 0) {
+          const totalAccuracy = userAttempts.reduce((sum, attempt) => sum + attempt.accuracy, 0);
+          pronunciationScore = totalAccuracy / pronunciationCount;
+        }
+        
+        // Add XP for pronunciation practice
+        totalXP += pronunciationCount * 10;
+      }
+
+      // Load scenario/pronunciation scores (legacy - keep for backwards compatibility)
       if (scenarioScoresStr) {
         const scores = JSON.parse(scenarioScoresStr);
         scores.forEach((scoreData) => {
-          if (scoreData.pronunciation) {
+          if (scoreData.pronunciation && pronunciationCount === 0) {
+            // Only use if no pronunciation attempts from vocabulary
             pronunciationScore += scoreData.pronunciation;
             pronunciationCount++;
           }
@@ -161,8 +281,10 @@ export default function ProgressTrackerScreen({ navigation, route }) {
         nextLevelXP = 3000;
       }
 
+      // Calculate average pronunciation accuracy
+      // pronunciationScore is already the average accuracy percentage (0-100)
       const avgPronunciation = pronunciationCount > 0
-        ? Math.round((pronunciationScore / pronunciationCount) * 100) / 100
+        ? Math.round(pronunciationScore)
         : 0;
 
       setProgressData({
@@ -267,11 +389,28 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       </View>
 
       {/* Daily Streak Card */}
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="flame" size={24} color="#FF6B35" />
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Daily Streak</Text>
-        </View>
+      <TouchableOpacity 
+        activeOpacity={0.8}
+        onPress={handleDailyCheckIn}
+        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      >
+        <Animated.View style={{ transform: [{ scale: checkInScale }] }}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="flame" size={24} color="#FF6B35" />
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Daily Streak</Text>
+            {!checkedInToday && canCheckIn && (
+              <View style={[styles.checkInBadge, { backgroundColor: theme.primary }]}>
+                <Text style={styles.checkInBadgeText}>Tap to Check In!</Text>
+              </View>
+            )}
+            {checkedInToday && (
+              <View style={[styles.checkInBadge, { backgroundColor: '#4CAF50' }]}>
+                <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 4 }} />
+                <Text style={styles.checkInBadgeText}>Checked In</Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
         <View style={styles.streakContainer}>
           <View style={styles.streakItem}>
             <Text style={[styles.streakNumber, { color: theme.primary }]}>{progressData.dailyStreak}</Text>
@@ -283,6 +422,16 @@ export default function ProgressTrackerScreen({ navigation, route }) {
             <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>Longest</Text>
           </View>
         </View>
+
+        {/* Check-in Reward Info */}
+        {!checkedInToday && canCheckIn && (
+          <View style={[styles.rewardInfo, { backgroundColor: theme.primary + '15', borderColor: theme.primary }]}>
+            <Ionicons name="gift" size={20} color={theme.primary} />
+            <Text style={[styles.rewardText, { color: theme.text }]}>
+              Check in now to earn 50 points + 25 XP!
+            </Text>
+          </View>
+        )}
 
         {/* Weekly Activity */}
         <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>This Week</Text>
@@ -303,7 +452,7 @@ export default function ProgressTrackerScreen({ navigation, route }) {
             </View>
           ))}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
@@ -419,7 +568,14 @@ export default function ProgressTrackerScreen({ navigation, route }) {
 
         <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
           <Text style={[styles.detailedStatLabel, { color: theme.text }]}>Pronunciation Accuracy</Text>
-          <Text style={[styles.detailedStatValue, { color: theme.primary }]}>{progressData.pronunciationAccuracy}%</Text>
+          <View style={styles.detailedStatValueContainer}>
+            <Text style={[styles.detailedStatValue, { color: theme.primary }]}>
+              {progressData.pronunciationAccuracy}%
+            </Text>
+            <Text style={[styles.detailedStatSubtext, { color: theme.textSecondary }]}>
+              {progressData.pronunciationAttempts} {progressData.pronunciationAttempts === 1 ? 'attempt' : 'attempts'}
+            </Text>
+          </View>
         </View>
 
         <View style={[styles.detailedStatRow, { borderBottomColor: theme.border }]}>
@@ -650,6 +806,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
+    flex: 1,
+  },
+  checkInBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.s,
+    paddingVertical: SPACING.xs,
+    borderRadius: 12,
+    marginLeft: 'auto',
+  },
+  checkInBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  rewardInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    borderRadius: 12,
+    marginBottom: SPACING.m,
+    borderWidth: 1,
+    gap: SPACING.s,
+  },
+  rewardText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
   },
   streakContainer: {
     flexDirection: 'row',
@@ -802,6 +986,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  detailedStatValueContainer: {
+    alignItems: 'flex-end',
+  },
+  detailedStatSubtext: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   insightText: {
     fontSize: 14,
