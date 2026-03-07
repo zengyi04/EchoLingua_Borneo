@@ -300,11 +300,29 @@ export default function LanguageVitalityDashboard() {
     [liveStats]
   );
 
-  const maxValue = Math.max(...activityData.map((d) => d.value), 1);
-  const vitalityPredictions = VITALITY_INPUTS.map((entry) => ({
-    ...entry,
-    prediction: predictVitality(entry),
-  }));
+  const vitalityPredictions = useMemo(() => {
+    const engagementScore =
+      liveStats.quizzesCompleted * 0.8 +
+      liveStats.practiceSessions * 1.1 +
+      liveStats.totalRecordings * 0.6 +
+      liveStats.activeLearners * 1.4 +
+      Math.floor(liveStats.learningMinutes / 10);
+
+    const engagementBoost = clamp(engagementScore / 180, 0, 0.2);
+
+    return VITALITY_INPUTS.map((entry) => {
+      const adjustedInput = {
+        ...entry,
+        youthLearningRate: clamp(entry.youthLearningRate + engagementBoost * 40, 0, 100),
+        communityActivity: clamp(entry.communityActivity + engagementBoost * 35, 0, 100),
+      };
+
+      return {
+        ...adjustedInput,
+        prediction: predictVitality(adjustedInput),
+      };
+    });
+  }, [liveStats]);
   const dialectPredictions = DIALECT_VARIATION_DATA.map((entry) => ({
     ...entry,
     detection: detectDialectDifference(entry),
@@ -477,7 +495,7 @@ export default function LanguageVitalityDashboard() {
                 numColumns={statColumns}
                 key={`stats-${statColumns}`}
                 scrollEnabled={false}
-                columnWrapperStyle={styles.statsRow}
+                columnWrapperStyle={statColumns > 1 ? styles.statsRow : undefined}
               />
             </View>
           )}
@@ -554,9 +572,9 @@ export default function LanguageVitalityDashboard() {
                   <MaterialCommunityIcons name="brain" size={24} color={theme.primary} />
                 </View>
                 <View>
-                  <Text style={[styles.vitalityTitle, { color: theme.text }]}>AI Language Vitality Prediction</Text>
+                  <Text style={[styles.vitalityTitle, { color: theme.text }]}>AI Language Health</Text>
                   <Text style={[styles.vitalitySubtitleInline, { color: theme.textSecondary }]}>
-                    Based on speakers, youth learning rate, and community activity
+                    Live score from speakers, youth learning, and community activity
                   </Text>
                 </View>
               </View>
@@ -583,7 +601,7 @@ export default function LanguageVitalityDashboard() {
                       <Text style={[styles.vitalityMetricValue, { color: theme.text }]}>{item.speakers.toLocaleString()}</Text>
                     </View>
                     <View style={styles.vitalityMetricItem}>
-                      <Text style={[styles.vitalityMetricLabel, { color: theme.textSecondary }]}>Youth Learning</Text>
+                      <Text style={[styles.vitalityMetricLabel, { color: theme.textSecondary }]}>Youth Learning Rate</Text>
                       <Text style={[styles.vitalityMetricValue, { color: theme.text }]}>{item.youthLearningRate}%</Text>
                     </View>
                     <View style={styles.vitalityMetricItem}>
@@ -599,7 +617,48 @@ export default function LanguageVitalityDashboard() {
               );
             })}
 
-            <Text style={[styles.vitalityFooterText, { color: theme.textSecondary }]}>This prediction helps researchers monitor language survival trends and prioritize revitalization support.</Text>
+            <View style={[styles.aiExplainBox, { backgroundColor: theme.background, borderColor: theme.border }]}> 
+              <Text style={[styles.aiExplainTitle, { color: theme.text }]}>How this score works</Text>
+              <Text style={[styles.aiExplainText, { color: theme.textSecondary }]}> 
+                More quizzes, practice, recordings, and active learners increase this score in real time.
+              </Text>
+            </View>
+
+            <View style={styles.aiActionRow}>
+              <TouchableOpacity
+                style={[styles.aiActionButton, { backgroundColor: theme.primary + '14', borderColor: theme.primary + '40' }]}
+                onPress={() => navigation.navigate('Quiz')}
+              >
+                <Ionicons name="help-circle-outline" size={15} color={theme.primary} />
+                <Text style={[styles.aiActionText, { color: theme.primary }]} numberOfLines={1}>Take Quiz</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.aiActionButton, { backgroundColor: theme.secondary + '14', borderColor: theme.secondary + '40' }]}
+                onPress={() => navigation.navigate('Record')}
+              >
+                <Ionicons name="mic-outline" size={15} color={theme.secondary || theme.primary} />
+                <Text style={[styles.aiActionText, { color: theme.secondary || theme.primary }]} numberOfLines={1}>Add Recording</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.aiActionButton, { backgroundColor: theme.success + '14', borderColor: theme.success + '40' }]}
+                onPress={() => navigation.navigate('ProgressTracker')}
+              >
+                <Ionicons name="analytics-outline" size={15} color={theme.success} />
+                <Text style={[styles.aiActionText, { color: theme.success }]} numberOfLines={1}>View Progress</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.aiActionButton, { backgroundColor: theme.accent + '14', borderColor: theme.accent + '40' }]}
+                onPress={() => navigation.navigate('CommunityStory')}
+              >
+                <Ionicons name="people-outline" size={15} color={theme.accent} />
+                <Text style={[styles.aiActionText, { color: theme.accent }]} numberOfLines={1}>Community</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.vitalityFooterText, { color: theme.textSecondary }]}>Tip: use the buttons above to improve this score and track changes instantly.</Text>
           </View>}
 
           {/* Dialect Detection */}
@@ -975,6 +1034,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: SPACING.xs,
+  },
+  aiExplainBox: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: SPACING.s,
+    marginTop: SPACING.xs,
+  },
+  aiExplainTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  aiExplainText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  aiActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: SPACING.s,
+  },
+  aiActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: '100%',
+  },
+  aiActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
   },
   connectionCard: {
     backgroundColor: COLORS.glassLight,
