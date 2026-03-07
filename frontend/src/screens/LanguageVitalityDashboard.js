@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { COLORS, SPACING, SHADOWS } from '../constants/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
-const STATS = [
-  { id: '1', title: 'Total Recordings', value: '1,247', icon: 'mic', colorKey: 'primary', change: '+15%' },
-  { id: '2', title: 'Active Learners', value: '3,842', icon: 'people', colorKey: 'success', change: '+8%' },
-  { id: '3', title: 'Stories Created', value: '156', icon: 'book', colorKey: 'secondary', change: '+23%' },
-  { id: '4', title: 'Words Documented', value: '4,521', icon: 'text', colorKey: 'accent', change: '+12%' },
-];
+const SIDEBAR_WIDTH = 200;
+const COLLAPSED_SIDEBAR_WIDTH = 60;
+
+const QUIZ_RESULTS_KEY = '@echolingua_quiz_results';
+const SCENARIO_RESULTS_KEY = '@echolingua_scenario_results';
+const RECORDINGS_KEY = '@echolingua_recordings';
+const USERS_DATABASE_KEY = '@echolingua_users_database';
+const TOTAL_LEARNING_TIME_KEY = '@total_learning_time';
 
 const CHART_DATA = [
   { month: 'Jan', value: 65, label: '65' },
@@ -48,6 +51,39 @@ const VITALITY_INPUTS = [
   { id: 'penan', language: 'Penan', speakers: 12000, youthLearningRate: 37, communityActivity: 39 },
 ];
 
+const DIALECT_VARIATION_DATA = [
+  {
+    id: 'iban-dialect',
+    language: 'Iban',
+    regions: ['Sri Aman', 'Sibu'],
+    examples: [
+      { concept: 'eat', regionA: 'makai', regionB: 'ngirup' },
+      { concept: 'where', regionA: 'dini', regionB: 'ni' },
+      { concept: 'friend', regionA: 'kaban', regionB: 'belayan' },
+    ],
+  },
+  {
+    id: 'bidayuh-dialect',
+    language: 'Bidayuh',
+    regions: ['Bau', 'Serian'],
+    examples: [
+      { concept: 'water', regionA: 'ayi', regionB: 'sii' },
+      { concept: 'house', regionA: 'singo', regionB: 'binah' },
+      { concept: 'come', regionA: 'mai', regionB: 'mari' },
+    ],
+  },
+  {
+    id: 'kadazan-dialect',
+    language: 'Kadazan-Dusun',
+    regions: ['Penampang', 'Ranau'],
+    examples: [
+      { concept: 'yes', regionA: 'oi', regionB: 'aa' },
+      { concept: 'child', regionA: 'tanak', regionB: 'anak' },
+      { concept: 'rice', regionA: 'parai', regionB: 'wagas' },
+    ],
+  },
+];
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 // AI-inspired weighted model from three indicators: speakers, youth learning, community activity.
@@ -70,15 +106,208 @@ const predictVitality = ({ speakers, youthLearningRate, communityActivity }) => 
   return { level: 'Declining', score: Math.round(vitalityScore), tone: 'error' };
 };
 
+const detectDialectDifference = (dialectEntry) => {
+  const differenceCount = dialectEntry.examples.filter(
+    (example) =>
+      example.regionA.trim().toLowerCase() !== example.regionB.trim().toLowerCase()
+  ).length;
+  const ratio = differenceCount / Math.max(dialectEntry.examples.length, 1);
+  const score = Math.round(ratio * 100);
+
+  if (score >= 70) {
+    return {
+      level: 'High Variation',
+      teachingTip: 'Teach both variants together with region labels to improve cross-region understanding.',
+      tone: 'error',
+      score,
+    };
+  }
+  if (score >= 40) {
+    return {
+      level: 'Moderate Variation',
+      teachingTip: 'Introduce base vocabulary first, then add regional alternatives in follow-up lessons.',
+      tone: 'accent',
+      score,
+    };
+  }
+  return {
+    level: 'Low Variation',
+    teachingTip: 'Use a shared core list and add small pronunciation notes by region.',
+    tone: 'success',
+    score,
+  };
+};
+
 export default function LanguageVitalityDashboard() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [selectedView, setSelectedView] = useState('overview');
+  const [isLoading, setIsLoading] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [sidebarAnimation] = useState(new Animated.Value(1));
+  const [liveStats, setLiveStats] = useState({
+    totalRecordings: 0,
+    activeLearners: 0,
+    quizzesCompleted: 0,
+    practiceSessions: 0,
+    learningMinutes: 0,
+  });
+  const [activeLearnersList, setActiveLearnersList] = useState([]);
+  const [activityData, setActivityData] = useState(CHART_DATA);
 
-  const maxValue = Math.max(...CHART_DATA.map(d => d.value));
+  const toggleSidebar = () => {
+    const toValue = sidebarExpanded ? 0 : 1;
+    Animated.spring(sidebarAnimation, {
+      toValue,
+      useNativeDriver: false,
+      tension: 80,
+      friction: 12,
+    }).start();
+    setSidebarExpanded(!sidebarExpanded);
+  };
+
+  const sidebarWidth = sidebarAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLLAPSED_SIDEBAR_WIDTH, SIDEBAR_WIDTH],
+  });
+
+  const parseArray = (raw) => {
+    try {
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  };
+
+  const buildMonthlyActivity = (quizResults, scenarioResults, recordings) => {
+    const allEvents = [...quizResults, ...scenarioResults, ...recordings];
+    const now = new Date();
+    const months = [];
+
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+      months.push({
+        month: date.toLocaleDateString(undefined, { month: 'short' }),
+        key: monthKey,
+        value: 0,
+      });
+    }
+
+    allEvents.forEach((entry) => {
+      const dateRaw = entry.createdAt || entry.timestamp || entry.date;
+      const parsedDate = dateRaw ? new Date(dateRaw) : null;
+      if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+        return;
+      }
+
+      const key = `${parsedDate.getFullYear()}-${parsedDate.getMonth()}`;
+      const match = months.find((month) => month.key === key);
+      if (match) {
+        match.value += 1;
+      }
+    });
+
+    return months.map((month) => ({
+      month: month.month,
+      value: month.value,
+      label: String(month.value),
+    }));
+  };
+
+  const loadDashboardMetrics = async () => {
+    try {
+      setIsLoading(true);
+      const [quizRaw, scenarioRaw, recordingsRaw, usersRaw, learningMinutesRaw] = await Promise.all([
+        AsyncStorage.getItem(QUIZ_RESULTS_KEY),
+        AsyncStorage.getItem(SCENARIO_RESULTS_KEY),
+        AsyncStorage.getItem(RECORDINGS_KEY),
+        AsyncStorage.getItem(USERS_DATABASE_KEY),
+        AsyncStorage.getItem(TOTAL_LEARNING_TIME_KEY),
+      ]);
+
+      const quizResults = parseArray(quizRaw);
+      const scenarioResults = parseArray(scenarioRaw);
+      const recordings = parseArray(recordingsRaw);
+      const users = parseArray(usersRaw);
+      const learningMinutes = Number.parseInt(learningMinutesRaw || '0', 10) || 0;
+
+      const today = new Date().toISOString().split('T')[0];
+      const activeLearners = users.filter((user) => {
+        if (!user?.lastActive) return false;
+        const lastActiveDate = new Date(user.lastActive).toISOString().split('T')[0];
+        return lastActiveDate === today;
+      });
+
+      setLiveStats({
+        totalRecordings: recordings.length,
+        activeLearners: activeLearners.length,
+        quizzesCompleted: quizResults.length,
+        practiceSessions: scenarioResults.length,
+        learningMinutes,
+      });
+      setActiveLearnersList(activeLearners.slice(0, 5));
+      setActivityData(buildMonthlyActivity(quizResults, scenarioResults, recordings));
+    } catch (error) {
+      console.error('Failed to load vitality dashboard metrics:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadDashboardMetrics();
+    }, [])
+  );
+
+  const statsCards = useMemo(
+    () => [
+      {
+        id: '1',
+        title: 'Total Recordings',
+        value: String(liveStats.totalRecordings),
+        icon: 'mic',
+        colorKey: 'primary',
+        change: '+Live',
+      },
+      {
+        id: '2',
+        title: 'Active Learners Today',
+        value: String(liveStats.activeLearners),
+        icon: 'people',
+        colorKey: 'success',
+        change: '+Live',
+      },
+      {
+        id: '3',
+        title: 'Quiz Attempts',
+        value: String(liveStats.quizzesCompleted),
+        icon: 'help-circle',
+        colorKey: 'secondary',
+        change: '+Live',
+      },
+      {
+        id: '4',
+        title: 'Practice Sessions',
+        value: String(liveStats.practiceSessions),
+        icon: 'school',
+        colorKey: 'accent',
+        change: '+Live',
+      },
+    ],
+    [liveStats]
+  );
+
+  const maxValue = Math.max(...activityData.map((d) => d.value), 1);
   const vitalityPredictions = VITALITY_INPUTS.map((entry) => ({
     ...entry,
     prediction: predictVitality(entry),
+  }));
+  const dialectPredictions = DIALECT_VARIATION_DATA.map((entry) => ({
+    ...entry,
+    detection: detectDialectDifference(entry),
   }));
 
   const getPredictionToneColor = (tone) => {
@@ -86,6 +315,11 @@ export default function LanguageVitalityDashboard() {
     if (tone === 'error') return theme.error;
     return theme.accent || theme.primary;
   };
+
+  const showOverview = selectedView === 'overview';
+  const showAnalytics = selectedView === 'analytics';
+  const showContributors = selectedView === 'contributors';
+  const showInsights = selectedView === 'insights';
 
   const renderStatCard = ({ item }) => {
     const itemColor = theme[item.colorKey] || theme.primary;
@@ -153,75 +387,176 @@ export default function LanguageVitalityDashboard() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
-        >
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Language Vitality</Text>
-        <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Track community impact and growth</Text>
+      {/* Header with Gradient */}
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: theme.surface }]}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('HomeTab'))}
+          >
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>Language Vitality</Text>
+            <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Track community impact and growth</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.sidebarToggle, { backgroundColor: theme.primary + '20' }]}
+            onPress={toggleSidebar}
+          >
+            <Ionicons name={sidebarExpanded ? "chevron-back" : "menu"} size={24} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.mainContent}>
-        {/* Sidebar Navigation */}
-        <View style={[styles.sidebar, { backgroundColor: theme.surface, borderRightColor: theme.border }]}>
-          {SIDEBAR_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.sidebarItem,
-                selectedView === item.id && { backgroundColor: theme.primary + '20' },
-              ]}
-              onPress={() => {
-                console.log(`📊 View: ${item.label} - Sound: tap`);
-                setSelectedView(item.id);
-              }}
-            >
-              <Ionicons
-                name={item.icon}
-                size={20}
-                color={selectedView === item.id ? theme.primary : theme.textSecondary}
-              />
-              <Text
+        {/* Animated Sidebar Navigation */}
+        <Animated.View 
+          style={[
+            styles.sidebar, 
+            { 
+              width: sidebarWidth,
+              backgroundColor: theme.surface, 
+              borderRightColor: theme.border 
+            }
+          ]}
+        >
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {SIDEBAR_ITEMS.map((item) => (
+              <TouchableOpacity
+                key={item.id}
                 style={[
-                  styles.sidebarLabel,
-                  { color: selectedView === item.id ? theme.primary : theme.textSecondary }
+                  styles.sidebarItem,
+                  selectedView === item.id && [styles.sidebarItemActive, { backgroundColor: theme.primary + '15' }],
                 ]}
+                onPress={() => {
+                  console.log(`📊 View: ${item.label} - Sound: tap`);
+                  setSelectedView(item.id);
+                }}
               >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <View style={[
+                  styles.sidebarIconContainer,
+                  selectedView === item.id && { backgroundColor: theme.primary }
+                ]}>
+                  <Ionicons
+                    name={item.icon}
+                    size={22}
+                    color={selectedView === item.id ? '#FFF' : theme.textSecondary}
+                  />
+                </View>
+                {sidebarExpanded && (
+                  <Text
+                    style={[
+                      styles.sidebarLabel,
+                      { color: selectedView === item.id ? theme.primary : theme.textSecondary }
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Animated.View>
 
         {/* Main Content Area */}
         <ScrollView style={styles.contentArea} showsVerticalScrollIndicator={false}>
-          {/* Statistics Cards */}
-          <View style={styles.statsSection}>
-            <FlatList
-              data={STATS}
-              renderItem={renderStatCard}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              scrollEnabled={false}
-              columnWrapperStyle={styles.statsRow}
-            />
-          </View>
+          {(showOverview || showAnalytics) && (
+            <View style={styles.statsSection}>
+              <FlatList
+                data={statsCards}
+                renderItem={renderStatCard}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                scrollEnabled={false}
+                columnWrapperStyle={styles.statsRow}
+              />
+            </View>
+          )}
 
-          {/* AI Vitality Prediction */}
-          <View style={[styles.vitalityCard, { backgroundColor: theme.surface }]}> 
-            <View style={styles.vitalityHeader}>
-              <View style={styles.vitalityHeaderLeft}>
-                <MaterialCommunityIcons name="brain" size={22} color={theme.primary} />
-                <Text style={[styles.vitalityTitle, { color: theme.text }]}>AI Language Vitality Prediction</Text>
+          {(showOverview || showContributors) && (
+            <View style={[styles.connectionCard, { backgroundColor: theme.surface }]}> 
+              <View style={styles.connectionHeader}>
+                <View style={styles.connectionHeaderLeft}>
+                  <MaterialCommunityIcons name="transit-connection-variant" size={22} color={theme.primary} />
+                  <Text style={[styles.connectionTitle, { color: theme.text }]}>Connected Learning Hub</Text>
+                </View>
+                {isLoading ? <Text style={[styles.connectionBadge, { color: theme.textSecondary }]}>syncing...</Text> : null}
               </View>
-              <View style={[styles.vitalityBadge, { backgroundColor: theme.primary + '1A' }]}>
-                <Text style={[styles.vitalityBadgeText, { color: theme.primary }]}>Research Mode</Text>
+              <Text style={[styles.connectionSubtitle, { color: theme.textSecondary }]}>Jump directly to practice, quizzes, recordings, and active learner community.</Text>
+
+              <View style={styles.connectionGrid}>
+                <TouchableOpacity style={[styles.connectionAction, { backgroundColor: theme.background, borderColor: theme.border }]} onPress={() => navigation.navigate('Vocabulary')}>
+                  <MaterialCommunityIcons name="book-open-page-variant" size={18} color={theme.primary} />
+                  <Text style={[styles.connectionActionTitle, { color: theme.text }]}>Practice</Text>
+                  <Text style={[styles.connectionActionValue, { color: theme.textSecondary }]}>{liveStats.practiceSessions} sessions</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.connectionAction, { backgroundColor: theme.background, borderColor: theme.border }]} onPress={() => navigation.navigate('Quiz')}>
+                  <Ionicons name="help-circle" size={18} color={theme.secondary || theme.primary} />
+                  <Text style={[styles.connectionActionTitle, { color: theme.text }]}>Quiz</Text>
+                  <Text style={[styles.connectionActionValue, { color: theme.textSecondary }]}>{liveStats.quizzesCompleted} attempts</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.connectionAction, { backgroundColor: theme.background, borderColor: theme.border }]} onPress={() => navigation.navigate('Record')}>
+                  <Ionicons name="mic" size={18} color={theme.accent || theme.primary} />
+                  <Text style={[styles.connectionActionTitle, { color: theme.text }]}>Recordings</Text>
+                  <Text style={[styles.connectionActionValue, { color: theme.textSecondary }]}>{liveStats.totalRecordings} clips</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.connectionAction, { backgroundColor: theme.background, borderColor: theme.border }]} onPress={() => navigation.navigate('CommunityStory')}>
+                  <Ionicons name="people" size={18} color={theme.success || theme.primary} />
+                  <Text style={[styles.connectionActionTitle, { color: theme.text }]}>Active Learners</Text>
+                  <Text style={[styles.connectionActionValue, { color: theme.textSecondary }]}>{liveStats.activeLearners} online today</Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <Text style={[styles.vitalitySubtitle, { color: theme.textSecondary }]}>Based on number of speakers, youth learning rate, and community activity.</Text>
+          )}
+
+          {(showOverview || showContributors) && (
+            <View style={[styles.activeLearnerCard, { backgroundColor: theme.surface }]}> 
+              <View style={styles.activeLearnerHeader}>
+                <MaterialCommunityIcons name="account-group" size={20} color={theme.success || theme.primary} />
+                <Text style={[styles.activeLearnerTitle, { color: theme.text }]}>Active Learners Today</Text>
+              </View>
+              {activeLearnersList.length === 0 ? (
+                <Text style={[styles.activeLearnerEmpty, { color: theme.textSecondary }]}>No active learners detected yet today.</Text>
+              ) : (
+                activeLearnersList.map((user) => (
+                  <View key={String(user.id || user.username)} style={[styles.activeLearnerRow, { borderColor: theme.border }]}> 
+                    <View style={[styles.activeLearnerAvatar, { backgroundColor: theme.primary + '1A' }]}> 
+                      <Text style={[styles.activeLearnerAvatarText, { color: theme.primary }]}>{String((user.username || user.name || 'U').charAt(0)).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.activeLearnerName, { color: theme.text }]}>{user.username || user.name || 'Learner'}</Text>
+                      <Text style={[styles.activeLearnerMeta, { color: theme.textSecondary }]}>{user.points || 0} points</Text>
+                    </View>
+                    <Ionicons name="pulse" size={16} color={theme.success || theme.primary} />
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {/* AI Vitality Prediction */}
+          {(showOverview || showAnalytics) && <View style={[styles.vitalityCard, { backgroundColor: theme.surface }]}> 
+            <View style={styles.vitalityHeader}>
+              <View style={styles.vitalityHeaderLeft}>
+                <View style={[styles.iconCircle, { backgroundColor: theme.primary + '20' }]}>
+                  <MaterialCommunityIcons name="brain" size={24} color={theme.primary} />
+                </View>
+                <View>
+                  <Text style={[styles.vitalityTitle, { color: theme.text }]}>AI Language Vitality Prediction</Text>
+                  <Text style={[styles.vitalitySubtitleInline, { color: theme.textSecondary }]}>
+                    Based on speakers, youth learning rate, and community activity
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.vitalityBadge, { backgroundColor: theme.primary + '15' }]}>
+                <Ionicons name="analytics" size={12} color={theme.primary} />
+                <Text style={[styles.vitalityBadgeText, { color: theme.primary }]}>AI</Text>
+              </View>
+            </View>
 
             {vitalityPredictions.map((item) => {
               const toneColor = getPredictionToneColor(item.prediction.tone);
@@ -257,10 +592,78 @@ export default function LanguageVitalityDashboard() {
             })}
 
             <Text style={[styles.vitalityFooterText, { color: theme.textSecondary }]}>This prediction helps researchers monitor language survival trends and prioritize revitalization support.</Text>
-          </View>
+          </View>}
+
+          {/* Dialect Detection */}
+          {(showOverview || showAnalytics) && <View style={[styles.dialectCard, { backgroundColor: theme.surface }]}> 
+            <View style={styles.dialectHeader}>
+              <View style={styles.dialectHeaderLeft}>
+                <View style={[styles.iconCircle, { backgroundColor: theme.secondary + '20' }]}>
+                  <MaterialCommunityIcons name="map-search" size={24} color={theme.secondary || theme.primary} />
+                </View>
+                <View>
+                  <Text style={[styles.dialectTitle, { color: theme.text }]}>Dialect Detection AI</Text>
+                  <Text style={[styles.dialectSubtitleInline, { color: theme.textSecondary }]}>
+                    AI detects dialect differences and suggests teaching strategies
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.regionBadge, { backgroundColor: theme.secondary + '15' }]}>
+                <Ionicons name="location" size={12} color={theme.secondary || theme.primary} />
+                <Text style={[styles.regionBadgeText, { color: theme.secondary || theme.primary }]}>Regional</Text>
+              </View>
+            </View>
+
+            {dialectPredictions.map((entry) => {
+              const toneColor = getPredictionToneColor(entry.detection.tone);
+              return (
+                <View key={entry.id} style={[styles.dialectRow, { backgroundColor: theme.background, borderColor: theme.border }]}> 
+                  <View style={styles.dialectRowHeader}>
+                    <Text style={[styles.dialectLanguageText, { color: theme.text }]}>{entry.language}</Text>
+                    <View style={[styles.dialectLevelPill, { backgroundColor: toneColor + '22', borderColor: toneColor + '55' }]}>
+                      <Text style={[styles.dialectLevelText, { color: toneColor }]}>{entry.detection.level} ({entry.detection.score}%)</Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.regionCompareText, { color: theme.textSecondary }]}>
+                    <Ionicons name="location-outline" size={14} color={theme.textSecondary} /> {entry.regions[0]} vs {entry.regions[1]}
+                  </Text>
+
+                  <View style={styles.examplesContainer}>
+                    {entry.examples.map((example, index) => (
+                      <View key={`${entry.id}-example-${index}`} style={[styles.wordBox, { backgroundColor: theme.background }]}> 
+                        <Text style={[styles.wordConcept, { color: theme.textSecondary }]}>{example.concept}</Text>
+                        <View style={styles.wordVariants}>
+                          <View style={[styles.variantBox, { backgroundColor: theme.primary + '10', borderColor: theme.primary + '30' }]}>
+                            <Text style={[styles.variantLabel, { color: theme.textSecondary }]}>{entry.regions[0]}</Text>
+                            <Text style={[styles.variantWord, { color: theme.primary }]}>{example.regionA}</Text>
+                          </View>
+                          <Ionicons name="swap-horizontal" size={16} color={theme.textSecondary} style={styles.swapIcon} />
+                          <View style={[styles.variantBox, { backgroundColor: theme.secondary + '10', borderColor: theme.secondary + '30' }]}>
+                            <Text style={[styles.variantLabel, { color: theme.textSecondary }]}>{entry.regions[1]}</Text>
+                            <Text style={[styles.variantWord, { color: theme.secondary || theme.primary }]}>{example.regionB}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View style={[styles.teachingTipBox, { backgroundColor: toneColor + '10', borderColor: toneColor + '40' }]}> 
+                    <View style={[styles.tipIcon, { backgroundColor: toneColor + '20' }]}>
+                      <MaterialCommunityIcons name="lightbulb-on" size={18} color={toneColor} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.tipTitle, { color: toneColor }]}>Teaching Strategy</Text>
+                      <Text style={[styles.teachingTipText, { color: theme.text }]}>{entry.detection.teachingTip}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>}
 
           {/* Chart Section */}
-          <View style={[styles.chartCard, { backgroundColor: theme.surface }]}>
+          {(showOverview || showAnalytics) && <View style={[styles.chartCard, { backgroundColor: theme.surface }]}> 
             <View style={styles.chartHeader}>
               <View>
                 <Text style={[styles.chartTitle, { color: theme.text }]}>Monthly Activity</Text>
@@ -291,7 +694,7 @@ export default function LanguageVitalityDashboard() {
 
                 {/* Bars */}
                 <View style={styles.barsContainer}>
-                  {CHART_DATA.map((data, index) => (
+                  {activityData.map((data, index) => (
                     <View key={index} style={styles.barWrapper}>
                       <View style={styles.barColumn}>
                         <View
@@ -313,10 +716,10 @@ export default function LanguageVitalityDashboard() {
                 </View>
               </View>
             </View>
-          </View>
+          </View>}
 
           {/* Leaderboard Section */}
-          <View style={[styles.leaderboardCard, { backgroundColor: theme.surface }]}>
+          {(showOverview || showContributors) && <View style={[styles.leaderboardCard, { backgroundColor: theme.surface }]}> 
             <View style={styles.leaderboardHeader}>
               <View style={styles.leaderboardHeaderLeft}>
                 <MaterialCommunityIcons name="trophy" size={24} color={theme.accent || theme.secondary} />
@@ -334,10 +737,10 @@ export default function LanguageVitalityDashboard() {
               scrollEnabled={false}
               ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.border }]} />}
             />
-          </View>
+          </View>}
 
           {/* Insights Section */}
-          <View style={styles.insightsSection}>
+          {(showOverview || showInsights) && <View style={styles.insightsSection}>
             <View style={[styles.insightCard, { backgroundColor: theme.surface }]}>
               <View style={styles.insightIcon}>
                 <MaterialCommunityIcons name="chart-line" size={32} color={theme.success} />
@@ -373,7 +776,7 @@ export default function LanguageVitalityDashboard() {
                 </Text>
               </View>
             </View>
-          </View>
+          </View>}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -595,6 +998,218 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: SPACING.xs,
+  },
+  connectionCard: {
+    backgroundColor: COLORS.glassLight,
+    margin: SPACING.m,
+    marginTop: 0,
+    borderRadius: SPACING.m,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    padding: SPACING.m,
+    ...SHADOWS.small,
+  },
+  connectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginBottom: SPACING.xs,
+  },
+  connectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    flex: 1,
+  },
+  connectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+  },
+  connectionBadge: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  connectionSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: SPACING.s,
+  },
+  connectionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.s,
+  },
+  connectionAction: {
+    width: '48%',
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    padding: SPACING.s,
+    gap: 4,
+  },
+  connectionActionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  connectionActionValue: {
+    fontSize: 11,
+  },
+  activeLearnerCard: {
+    backgroundColor: COLORS.glassLight,
+    marginHorizontal: SPACING.m,
+    marginBottom: SPACING.m,
+    marginTop: 0,
+    borderRadius: SPACING.m,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    padding: SPACING.m,
+    ...SHADOWS.small,
+  },
+  activeLearnerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginBottom: SPACING.s,
+  },
+  activeLearnerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  activeLearnerEmpty: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  activeLearnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    padding: SPACING.s,
+    marginBottom: SPACING.xs,
+    gap: SPACING.s,
+  },
+  activeLearnerAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeLearnerAvatarText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  activeLearnerName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  activeLearnerMeta: {
+    fontSize: 11,
+  },
+  dialectCard: {
+    backgroundColor: COLORS.glassLight,
+    margin: SPACING.m,
+    marginTop: 0,
+    borderRadius: SPACING.m,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    padding: SPACING.m,
+    ...SHADOWS.small,
+  },
+  dialectHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginBottom: SPACING.xs,
+  },
+  dialectHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    flex: 1,
+  },
+  dialectTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+  },
+  dialectSubtitlePill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: SPACING.s,
+    paddingVertical: 4,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  dialectSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: SPACING.m,
+  },
+  dialectRow: {
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    padding: SPACING.s,
+    marginBottom: SPACING.s,
+  },
+  dialectRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginBottom: SPACING.xs,
+  },
+  dialectLanguageText: {
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
+  dialectLevelPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: SPACING.s,
+    paddingVertical: 4,
+  },
+  dialectLevelText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  regionCompareText: {
+    fontSize: 12,
+    marginBottom: SPACING.s,
+  },
+  exampleRow: {
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    padding: SPACING.s,
+    marginBottom: SPACING.xs,
+  },
+  exampleConcept: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  exampleVariant: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  teachingTipBox: {
+    marginTop: SPACING.xs,
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    padding: SPACING.s,
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    alignItems: 'flex-start',
+  },
+  teachingTipText: {
+    fontSize: 12,
+    lineHeight: 18,
+    flex: 1,
   },
   chartCard: {
     backgroundColor: COLORS.glassLight,

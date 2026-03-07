@@ -36,6 +36,7 @@ import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import EmergencyContactsScreen from '../screens/EmergencyContactsScreen';
 import NotificationScreen from '../screens/NotificationScreen';
+import LanguageVitalityDashboard from '../screens/LanguageVitalityDashboard';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -141,6 +142,7 @@ export default function AppNavigator() {
       <Stack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
+      <Stack.Screen name="LanguageVitality" component={LanguageVitalityDashboard} />
       <Stack.Screen name="ProgressTracker" component={ProgressTrackerScreen} />
       <Stack.Screen name="CulturalEvents" component={CulturalEventsScreen} />
       <Stack.Screen name="Dictionary" component={DictionaryScreen} />
