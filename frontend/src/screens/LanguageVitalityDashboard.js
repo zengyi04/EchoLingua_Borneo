@@ -40,12 +40,52 @@ const SIDEBAR_ITEMS = [
   { id: 'insights', label: 'Insights', icon: 'bulb' },
 ];
 
+const VITALITY_INPUTS = [
+  { id: 'iban', language: 'Iban', speakers: 780000, youthLearningRate: 68, communityActivity: 74 },
+  { id: 'bidayuh', language: 'Bidayuh', speakers: 240000, youthLearningRate: 51, communityActivity: 58 },
+  { id: 'kadazan', language: 'Kadazan-Dusun', speakers: 200000, youthLearningRate: 64, communityActivity: 71 },
+  { id: 'murut', language: 'Murut', speakers: 95000, youthLearningRate: 43, communityActivity: 46 },
+  { id: 'penan', language: 'Penan', speakers: 12000, youthLearningRate: 37, communityActivity: 39 },
+];
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+// AI-inspired weighted model from three indicators: speakers, youth learning, community activity.
+const predictVitality = ({ speakers, youthLearningRate, communityActivity }) => {
+  const normalizedSpeakers = clamp((Math.log10(Math.max(speakers, 1)) - 3) / 3, 0, 1) * 100;
+  const normalizedYouth = clamp(youthLearningRate, 0, 100);
+  const normalizedCommunity = clamp(communityActivity, 0, 100);
+
+  const vitalityScore =
+    normalizedSpeakers * 0.4 +
+    normalizedYouth * 0.35 +
+    normalizedCommunity * 0.25;
+
+  if (vitalityScore >= 67) {
+    return { level: 'Reviving', score: Math.round(vitalityScore), tone: 'success' };
+  }
+  if (vitalityScore >= 45) {
+    return { level: 'Stable', score: Math.round(vitalityScore), tone: 'accent' };
+  }
+  return { level: 'Declining', score: Math.round(vitalityScore), tone: 'error' };
+};
+
 export default function LanguageVitalityDashboard() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [selectedView, setSelectedView] = useState('overview');
 
   const maxValue = Math.max(...CHART_DATA.map(d => d.value));
+  const vitalityPredictions = VITALITY_INPUTS.map((entry) => ({
+    ...entry,
+    prediction: predictVitality(entry),
+  }));
+
+  const getPredictionToneColor = (tone) => {
+    if (tone === 'success') return theme.success;
+    if (tone === 'error') return theme.error;
+    return theme.accent || theme.primary;
+  };
 
   const renderStatCard = ({ item }) => {
     const itemColor = theme[item.colorKey] || theme.primary;
@@ -168,6 +208,55 @@ export default function LanguageVitalityDashboard() {
               scrollEnabled={false}
               columnWrapperStyle={styles.statsRow}
             />
+          </View>
+
+          {/* AI Vitality Prediction */}
+          <View style={[styles.vitalityCard, { backgroundColor: theme.surface }]}> 
+            <View style={styles.vitalityHeader}>
+              <View style={styles.vitalityHeaderLeft}>
+                <MaterialCommunityIcons name="brain" size={22} color={theme.primary} />
+                <Text style={[styles.vitalityTitle, { color: theme.text }]}>AI Language Vitality Prediction</Text>
+              </View>
+              <View style={[styles.vitalityBadge, { backgroundColor: theme.primary + '1A' }]}>
+                <Text style={[styles.vitalityBadgeText, { color: theme.primary }]}>Research Mode</Text>
+              </View>
+            </View>
+            <Text style={[styles.vitalitySubtitle, { color: theme.textSecondary }]}>Based on number of speakers, youth learning rate, and community activity.</Text>
+
+            {vitalityPredictions.map((item) => {
+              const toneColor = getPredictionToneColor(item.prediction.tone);
+              return (
+                <View key={item.id} style={[styles.vitalityRow, { backgroundColor: theme.background, borderColor: theme.border }]}> 
+                  <View style={styles.vitalityRowTop}>
+                    <Text style={[styles.vitalityLanguage, { color: theme.text }]}>{item.language}</Text>
+                    <View style={[styles.vitalityLevelPill, { backgroundColor: toneColor + '22', borderColor: toneColor + '55' }]}>
+                      <Text style={[styles.vitalityLevelText, { color: toneColor }]}>{item.prediction.level}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.vitalityMetricsRow}>
+                    <View style={styles.vitalityMetricItem}>
+                      <Text style={[styles.vitalityMetricLabel, { color: theme.textSecondary }]}>Speakers</Text>
+                      <Text style={[styles.vitalityMetricValue, { color: theme.text }]}>{item.speakers.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.vitalityMetricItem}>
+                      <Text style={[styles.vitalityMetricLabel, { color: theme.textSecondary }]}>Youth Learning</Text>
+                      <Text style={[styles.vitalityMetricValue, { color: theme.text }]}>{item.youthLearningRate}%</Text>
+                    </View>
+                    <View style={styles.vitalityMetricItem}>
+                      <Text style={[styles.vitalityMetricLabel, { color: theme.textSecondary }]}>Community Activity</Text>
+                      <Text style={[styles.vitalityMetricValue, { color: theme.text }]}>{item.communityActivity}%</Text>
+                    </View>
+                    <View style={styles.vitalityMetricItem}>
+                      <Text style={[styles.vitalityMetricLabel, { color: theme.textSecondary }]}>AI Score</Text>
+                      <Text style={[styles.vitalityMetricValue, { color: toneColor }]}>{item.prediction.score}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+
+            <Text style={[styles.vitalityFooterText, { color: theme.textSecondary }]}>This prediction helps researchers monitor language survival trends and prioritize revitalization support.</Text>
           </View>
 
           {/* Chart Section */}
@@ -414,6 +503,98 @@ const styles = StyleSheet.create({
   statTitle: {
     fontSize: 11,
     color: COLORS.textSecondary,
+  },
+  vitalityCard: {
+    backgroundColor: COLORS.glassLight,
+    margin: SPACING.m,
+    marginTop: 0,
+    borderRadius: SPACING.m,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    padding: SPACING.m,
+    ...SHADOWS.small,
+  },
+  vitalityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+    gap: SPACING.s,
+  },
+  vitalityHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    flex: 1,
+  },
+  vitalityTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+  },
+  vitalitySubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: SPACING.m,
+  },
+  vitalityBadge: {
+    borderRadius: 999,
+    paddingHorizontal: SPACING.s,
+    paddingVertical: 4,
+  },
+  vitalityBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  vitalityRow: {
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    padding: SPACING.s,
+    marginBottom: SPACING.s,
+  },
+  vitalityRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.s,
+    gap: SPACING.s,
+  },
+  vitalityLanguage: {
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
+  vitalityLevelPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: SPACING.s,
+    paddingVertical: 4,
+  },
+  vitalityLevelText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  vitalityMetricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.s,
+  },
+  vitalityMetricItem: {
+    width: '47%',
+  },
+  vitalityMetricLabel: {
+    fontSize: 11,
+  },
+  vitalityMetricValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  vitalityFooterText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: SPACING.xs,
   },
   chartCard: {
     backgroundColor: COLORS.glassLight,

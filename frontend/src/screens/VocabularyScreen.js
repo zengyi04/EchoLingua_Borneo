@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, FlatList, StyleSheet, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,15 +7,38 @@ import VocabularyCard from '../components/VocabularyCard';
 import { vocabularyList } from '../data/mockData';
 import { COLORS, SPACING, SHADOWS, GLASS_EFFECTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { WORLD_LANGUAGES } from '../constants/languages';
 
-const LANGUAGE_OPTIONS = [
-  { id: 'malay', label: 'Malay', flag: 'MY', speechCode: 'ms-MY' },
-  { id: 'iban', label: 'Iban', flag: 'MY', speechCode: 'ms-MY' },
-  { id: 'kadazan', label: 'Kadazan-Dusun', flag: 'MY', speechCode: 'ms-MY' },
-  { id: 'english', label: 'English', flag: 'GB', speechCode: 'en-US' },
-  { id: 'mandarin', label: 'Mandarin', flag: 'CN', speechCode: 'zh-CN' },
-  { id: 'indonesian', label: 'Indonesian', flag: 'ID', speechCode: 'id-ID' },
-];
+const SPEECH_CODES = {
+  malay: 'ms-MY',
+  english: 'en-US',
+  indonesian: 'id-ID',
+  mandarin: 'zh-CN',
+  spanish: 'es-ES',
+  french: 'fr-FR',
+  arabic: 'ar-SA',
+  japanese: 'ja-JP',
+  korean: 'ko-KR',
+  german: 'de-DE',
+  portuguese: 'pt-PT',
+  thai: 'th-TH',
+  vietnamese: 'vi-VN',
+  russian: 'ru-RU',
+  italian: 'it-IT',
+  turkish: 'tr-TR',
+  hindi: 'hi-IN',
+  cantonese: 'zh-HK',
+  tagalog: 'fil-PH',
+  urdu: 'ur-PK',
+  tamil: 'ta-IN',
+};
+
+const LANGUAGE_OPTIONS = WORLD_LANGUAGES.map((language) => ({
+  id: language.id,
+  label: language.label,
+  flag: language.flag,
+  speechCode: SPEECH_CODES[language.id] || 'en-US',
+}));
 
 const VOCABULARY_BY_DIFFICULTY = {
   easy: vocabularyList.filter((word) => word.difficulty === 'easy'),
@@ -29,12 +52,24 @@ export default function VocabularyScreen() {
   const [selectedLevel, setSelectedLevel] = useState('easy');
   const [savedWords, setSavedWords] = useState({ easy: [], medium: [], hard: [] });
   const [testingMode, setTestingMode] = useState(false);
-  const [fromLanguage, setFromLanguage] = useState(LANGUAGE_OPTIONS[0]);
-  const [toLanguage, setToLanguage] = useState(LANGUAGE_OPTIONS[3]);
+  const [activeView, setActiveView] = useState('vocabulary');
+  const [fromLanguage, setFromLanguage] = useState(
+    LANGUAGE_OPTIONS.find((language) => language.id === 'malay') || LANGUAGE_OPTIONS[0]
+  );
+  const [toLanguage, setToLanguage] = useState(
+    LANGUAGE_OPTIONS.find((language) => language.id === 'english') || LANGUAGE_OPTIONS[0]
+  );
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [selectingLanguageType, setSelectingLanguageType] = useState('from');
 
   const currentVocabulary = VOCABULARY_BY_DIFFICULTY[selectedLevel];
+  const collectedVocabulary = useMemo(
+    () =>
+      Object.entries(savedWords).flatMap(([level, words]) =>
+        words.map((word) => ({ ...word, savedLevel: level }))
+      ),
+    [savedWords]
+  );
 
   const handleSaveWord = (word, level) => {
     const alreadySaved = savedWords[level].some((w) => w.id === word.id);
@@ -113,6 +148,32 @@ export default function VocabularyScreen() {
         </TouchableOpacity>
       </View>
 
+      <View style={[styles.viewSwitcher, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+        <TouchableOpacity
+          style={[
+            styles.viewButton,
+            { borderColor: theme.border, backgroundColor: theme.glassLight },
+            activeView === 'vocabulary' && { backgroundColor: theme.primary, borderColor: theme.primary },
+          ]}
+          onPress={() => setActiveView('vocabulary')}
+        >
+          <MaterialCommunityIcons name="book-open-page-variant" size={16} color={activeView === 'vocabulary' ? theme.surface : theme.primary} />
+          <Text style={[styles.viewButtonText, { color: activeView === 'vocabulary' ? theme.surface : theme.text }]}>Vocabulary</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.viewButton,
+            { borderColor: theme.border, backgroundColor: theme.glassLight },
+            activeView === 'collections' && { backgroundColor: theme.primary, borderColor: theme.primary },
+          ]}
+          onPress={() => setActiveView('collections')}
+        >
+          <MaterialCommunityIcons name="bookmark-multiple" size={16} color={activeView === 'collections' ? theme.surface : theme.primary} />
+          <Text style={[styles.viewButtonText, { color: activeView === 'collections' ? theme.surface : theme.text }]}>Collections</Text>
+        </TouchableOpacity>
+      </View>
+
       {testingMode && (
         <View style={[styles.testingBanner, { backgroundColor: theme.primary + '20' }]}>
           <MaterialCommunityIcons name="lightbulb" size={18} color={theme.primary} />
@@ -120,43 +181,76 @@ export default function VocabularyScreen() {
         </View>
       )}
 
-      <View style={[styles.tabsContainer, { backgroundColor: theme.surface }]}>
-        {['easy', 'medium', 'hard'].map((level) => (
-          <TouchableOpacity
-            key={level}
-            style={[styles.tab, { backgroundColor: theme.glassLight, borderColor: theme.border }, selectedLevel === level && { backgroundColor: theme.primary, borderColor: theme.primary }]}
-            onPress={() => setSelectedLevel(level)}
-          >
-            <Text style={[styles.tabText, { color: theme.textSecondary }, selectedLevel === level && { color: theme.surface, fontWeight: 'bold' }]}>
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </Text>
-            <Text style={[styles.tabCount, { color: theme.textSecondary, opacity: 0.7 }, selectedLevel === level && { color: theme.surface }]}>{VOCABULARY_BY_DIFFICULTY[level].length} words</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {activeView === 'vocabulary' && (
+        <View style={[styles.tabsContainer, { backgroundColor: theme.surface }]}> 
+          {['easy', 'medium', 'hard'].map((level) => (
+            <TouchableOpacity
+              key={level}
+              style={[styles.tab, { backgroundColor: theme.glassLight, borderColor: theme.border }, selectedLevel === level && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+              onPress={() => setSelectedLevel(level)}
+            >
+              <Text style={[styles.tabText, { color: theme.textSecondary }, selectedLevel === level && { color: theme.surface, fontWeight: 'bold' }]}> 
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </Text>
+              <Text style={[styles.tabCount, { color: theme.textSecondary, opacity: 0.7 }, selectedLevel === level && { color: theme.surface }]}>{VOCABULARY_BY_DIFFICULTY[level].length} words</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       <View style={styles.counterRow}>
         <MaterialCommunityIcons name="bookmark" size={16} color={theme.success} />
-        <Text style={[styles.counterText, { color: theme.textSecondary }]}>{savedWords[selectedLevel].length} saved</Text>
+        <Text style={[styles.counterText, { color: theme.textSecondary }]}>
+          {activeView === 'vocabulary'
+            ? `${savedWords[selectedLevel].length} saved in ${selectedLevel}`
+            : `${collectedVocabulary.length} words in your collection`}
+        </Text>
       </View>
 
-      <FlatList
-        data={currentVocabulary}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <VocabularyCard
-            word={item}
-            isSaved={isWordSaved(item, selectedLevel)}
-            onSave={() => handleSaveWord(item, selectedLevel)}
-            testingMode={testingMode}
-            level={selectedLevel}
-            fromLanguage={fromLanguage}
-            toLanguage={toLanguage}
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {activeView === 'vocabulary' ? (
+        <FlatList
+          data={currentVocabulary}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <VocabularyCard
+              word={item}
+              isSaved={isWordSaved(item, selectedLevel)}
+              onSave={() => handleSaveWord(item, selectedLevel)}
+              testingMode={testingMode}
+              level={selectedLevel}
+              fromLanguage={fromLanguage}
+              toLanguage={toLanguage}
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <FlatList
+          data={collectedVocabulary}
+          keyExtractor={(item) => `${item.savedLevel}-${item.id}`}
+          renderItem={({ item }) => (
+            <VocabularyCard
+              word={item}
+              isSaved={true}
+              onSave={() => handleSaveWord(item, item.savedLevel)}
+              testingMode={testingMode}
+              level={item.savedLevel}
+              fromLanguage={fromLanguage}
+              toLanguage={toLanguage}
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyCollectionContainer}>
+              <MaterialCommunityIcons name="bookmark-off-outline" size={42} color={theme.textSecondary} />
+              <Text style={[styles.emptyCollectionTitle, { color: theme.text }]}>No saved vocabulary yet</Text>
+              <Text style={[styles.emptyCollectionText, { color: theme.textSecondary }]}>Save words from Easy, Medium, or Hard tabs, then view them here.</Text>
+            </View>
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       <Modal visible={showLanguageModal} transparent animationType="slide" onRequestClose={() => setShowLanguageModal(false)}>
         <View style={styles.modalOverlay}>
@@ -226,6 +320,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s,
   },
   languageText: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
+  viewSwitcher: {
+    flexDirection: 'row',
+    gap: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    paddingTop: SPACING.s,
+    paddingBottom: SPACING.s,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  viewButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    paddingVertical: SPACING.s,
+  },
+  viewButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   testingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,6 +385,23 @@ const styles = StyleSheet.create({
   },
   counterText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
   listContent: { paddingBottom: SPACING.xl },
+  emptyCollectionContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.l,
+    paddingVertical: SPACING.xxl,
+    gap: SPACING.s,
+  },
+  emptyCollectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptyCollectionText: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: COLORS.glassLight,
