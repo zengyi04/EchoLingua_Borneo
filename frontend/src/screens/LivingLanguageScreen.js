@@ -286,7 +286,7 @@ export default function LivingLanguageScreen() {
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [selectedCase, setSelectedCase] = useState(null);
   const [showTranslation, setShowTranslation] = useState(true);
-  const [playingAudio, setPlayingAudio] = useState(null);
+  const [playingAudioKey, setPlayingAudioKey] = useState(null);
   const defaultFromLanguage = LANGUAGE_CHOICES.find((item) => item.id === 'malay') || LANGUAGE_CHOICES[0];
   const defaultToLanguage = LANGUAGE_CHOICES.find((item) => item.id === 'english') || LANGUAGE_CHOICES[1] || LANGUAGE_CHOICES[0];
   const [fromLanguage, setFromLanguage] = useState(defaultFromLanguage);
@@ -474,21 +474,24 @@ export default function LivingLanguageScreen() {
     }
   };
 
-  const playLine = (lineId, text) => {
+  const playLine = (lineId, text, speechCode = 'en-US', channel = 'source') => {
     if (!text) return;
-    if (playingAudio === lineId) {
+    const audioKey = `${lineId}-${channel}`;
+
+    if (playingAudioKey === audioKey) {
       Speech.stop();
-      setPlayingAudio(null);
+      setPlayingAudioKey(null);
       return;
     }
-    setPlayingAudio(lineId);
+
+    setPlayingAudioKey(audioKey);
     Speech.stop();
     Speech.speak(text, {
-      language: fromLanguage.speechCode || 'en-US',
+      language: speechCode,
       rate: 0.9,
-      onDone: () => setPlayingAudio(null),
-      onStopped: () => setPlayingAudio(null),
-      onError: () => setPlayingAudio(null),
+      onDone: () => setPlayingAudioKey(null),
+      onStopped: () => setPlayingAudioKey(null),
+      onError: () => setPlayingAudioKey(null),
     });
   };
 
@@ -722,12 +725,27 @@ export default function LivingLanguageScreen() {
                 <View key={line.id} style={[styles.lineCard, { borderColor: theme.border }, line.speaker === 'elder' ? [styles.elderCard, { backgroundColor: theme.surface, borderLeftColor: theme.primary }] : [styles.userCard, { backgroundColor: theme.surfaceVariant, borderRightColor: theme.secondary }]]}>
                   <View style={[styles.lineHeader, { borderBottomColor: theme.border }]}>
                     <Text style={[styles.speakerTag, { color: theme.textSecondary }]}>{line.speaker === 'elder' ? 'Elder' : 'You'}</Text>
-                    <TouchableOpacity onPress={() => playLine(line.id, line.indigenous)}>
-                      <Ionicons name={playingAudio === line.id ? 'pause-circle' : 'play-circle'} size={22} color={theme.primary} />
+                    <TouchableOpacity onPress={() => playLine(line.id, line.indigenous, fromLanguage.speechCode || 'en-US', 'source')}>
+                      <Ionicons name={playingAudioKey === `${line.id}-source` ? 'pause-circle' : 'play-circle'} size={22} color={theme.primary} />
                     </TouchableOpacity>
                   </View>
                   <Text style={[styles.lineText, { color: theme.text }]}>{line.indigenous}</Text>
-                  {showTranslation && <Text style={[styles.translationText, { color: theme.textSecondary }]}>{line.translation}</Text>}
+                  {showTranslation && (
+                    <View style={styles.translationRow}>
+                      <Text style={[styles.translationText, { color: theme.textSecondary }]}>{line.translation}</Text>
+                      <TouchableOpacity
+                        style={[styles.translationPlayButton, { borderColor: theme.border, backgroundColor: theme.background }]}
+                        onPress={() => playLine(line.id, line.translation, toLanguage.speechCode || 'en-US', 'translation')}
+                      >
+                        <Ionicons
+                          name={playingAudioKey === `${line.id}-translation` ? 'pause-circle' : 'volume-high'}
+                          size={18}
+                          color={theme.primary}
+                        />
+                        <Text style={[styles.translationPlayText, { color: theme.primary }]}>Play Translation</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -955,6 +973,25 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary, 
     fontStyle: 'italic',
     lineHeight: 20,
+  },
+  translationRow: {
+    marginTop: SPACING.s,
+    gap: SPACING.s,
+  },
+  translationPlayButton: {
+    marginTop: SPACING.xs,
+    borderWidth: 1,
+    borderRadius: SPACING.s,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.s,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: SPACING.xs,
+  },
+  translationPlayText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   practiceSection: { 
     margin: SPACING.m, 

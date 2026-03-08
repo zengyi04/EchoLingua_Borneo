@@ -110,11 +110,30 @@ export default function ProgressTrackerScreen({ navigation, route }) {
 
     try {
       const today = new Date().toDateString();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
       const POINTS_REWARD = 50; // Points awarded for daily check-in
       const XP_REWARD = 25; // XP awarded for daily check-in
+
+      const lastCheckIn = await AsyncStorage.getItem('@last_check_in_date');
+      const currentStreakRaw = await AsyncStorage.getItem('@dailyStreak');
+      const currentStreak = Number.parseInt(currentStreakRaw || '0', 10) || 0;
+
+      let nextStreak = 1;
+      if (lastCheckIn === yesterdayStr) {
+        nextStreak = currentStreak + 1;
+      }
+
+      const longestRaw = await AsyncStorage.getItem('@longestStreak');
+      const currentLongest = Number.parseInt(longestRaw || '0', 10) || 0;
+      const nextLongest = Math.max(currentLongest, nextStreak);
       
       // Update check-in date
       await AsyncStorage.setItem('@last_check_in_date', today);
+      await AsyncStorage.setItem('@lastActiveDate', today);
+      await AsyncStorage.setItem('@dailyStreak', String(nextStreak));
+      await AsyncStorage.setItem('@longestStreak', String(nextLongest));
       
       // Award points and XP
       const currentXP = progressData.xp;
@@ -144,6 +163,8 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       setProgressData(prev => ({
         ...prev,
         xp: newXP,
+        dailyStreak: nextStreak,
+        longestStreak: nextLongest,
       }));
       setCheckedInToday(true);
       setCanCheckIn(false);
@@ -151,7 +172,7 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       // Show success alert
       Alert.alert(
         '🎉 Daily Check-In Complete!',
-        `Great job! You earned:\n\n🎁 ${POINTS_REWARD} Points\n⭐ ${XP_REWARD} XP\n🔥 Streak maintained!\n\nKeep learning every day to maintain your streak!`,
+        `Great job! You earned:\n\n🎁 ${POINTS_REWARD} Points\n⭐ ${XP_REWARD} XP\n🔥 Daily streak: ${nextStreak}\n\nCheck in once per day to keep your streak growing.`,
         [{ text: 'Awesome!' }]
       );
       
@@ -173,6 +194,8 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       const lastActive = await AsyncStorage.getItem('@lastActiveDate');
       const learningTimeStr = await AsyncStorage.getItem('@total_learning_time');
       const pronunciationAttemptsStr = await AsyncStorage.getItem('@echolingua_pronunciation_attempts');
+      const currentUserRaw = await AsyncStorage.getItem('@echolingua_current_user');
+      const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
 
       let vocabCount = 0;
       let totalQuizzes = 0;
@@ -198,7 +221,9 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       if (pronunciationAttemptsStr) {
         const allAttempts = JSON.parse(pronunciationAttemptsStr);
         // Filter attempts for current user
-        const userAttempts = allAttempts.filter(attempt => attempt.userId === currentUser.id);
+        const userAttempts = currentUser?.id
+          ? allAttempts.filter((attempt) => attempt.userId === currentUser.id)
+          : allAttempts;
         pronunciationCount = userAttempts.length;
         
         // Calculate average accuracy
@@ -241,31 +266,34 @@ export default function ProgressTrackerScreen({ navigation, route }) {
       // Load total learning time (in minutes)
       const totalLearningTime = learningTimeStr ? parseInt(learningTimeStr) : 0;
 
-      // Calculate daily streak
+      // Read streak values and only reset when streak is genuinely broken.
       const today = new Date().toDateString();
-      let streak = 1;
-      let longestStreak = 1;
+      const lastCheckIn = await AsyncStorage.getItem('@last_check_in_date');
+      let streak = Number.parseInt((await AsyncStorage.getItem('@dailyStreak')) || '0', 10) || 0;
+      let longestStreak = Number.parseInt((await AsyncStorage.getItem('@longestStreak')) || '0', 10) || 0;
 
-      if (lastActive && lastActive !== today) {
-        const lastDate = new Date(lastActive);
+      if (lastCheckIn) {
+        const lastDate = new Date(lastCheckIn);
         const todayDate = new Date(today);
-        const diffTime = Math.abs(todayDate - lastDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffTime = todayDate - lastDate;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays === 1) {
-          const storedStreak = await AsyncStorage.getItem('@dailyStreak');
-          streak = storedStreak ? parseInt(storedStreak) + 1 : 1;
-        } else {
-          streak = 1;
+        if (diffDays > 1) {
+          streak = 0;
+          await AsyncStorage.setItem('@dailyStreak', '0');
         }
       }
 
-      await AsyncStorage.setItem('@lastActiveDate', today);
-      await AsyncStorage.setItem('@dailyStreak', streak.toString());
-
-      const storedLongestStreak = await AsyncStorage.getItem('@longestStreak');
-      longestStreak = storedLongestStreak ? Math.max(parseInt(storedLongestStreak), streak) : streak;
-      await AsyncStorage.setItem('@longestStreak', longestStreak.toString());
+      if (!lastCheckIn && lastActive) {
+        const lastDate = new Date(lastActive);
+        const todayDate = new Date(today);
+        const diffTime = todayDate - lastDate;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 1 && streak > 0) {
+          streak = 0;
+          await AsyncStorage.setItem('@dailyStreak', '0');
+        }
+      }
 
       // Determine level based on XP
       let level = 'Beginner';
@@ -400,17 +428,24 @@ export default function ProgressTrackerScreen({ navigation, route }) {
             <Text style={[styles.cardTitle, { color: theme.text }]}>Daily Streak</Text>
             {!checkedInToday && canCheckIn && (
               <View style={[styles.checkInBadge, { backgroundColor: theme.primary }]}>
-                <Text style={styles.checkInBadgeText}>Tap to Check In!</Text>
+                <Text style={styles.checkInBadgeText}>+1 Daily Check-In</Text>
               </View>
             )}
             {checkedInToday && (
               <View style={[styles.checkInBadge, { backgroundColor: '#4CAF50' }]}>
                 <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 4 }} />
-                <Text style={styles.checkInBadgeText}>Checked In</Text>
+                <Text style={styles.checkInBadgeText}>Checked In Today</Text>
               </View>
             )}
           </View>
         </Animated.View>
+
+        <Text style={[styles.streakStatusText, { color: theme.textSecondary }]}> 
+          {checkedInToday
+            ? 'You checked in today. Come back tomorrow for another +1 streak.'
+            : 'Tap once per day to increase your streak by +1.'}
+        </Text>
+
         <View style={styles.streakContainer}>
           <View style={styles.streakItem}>
             <Text style={[styles.streakNumber, { color: theme.primary }]}>{progressData.dailyStreak}</Text>
@@ -834,6 +869,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
+  },
+  streakStatusText: {
+    fontSize: 13,
+    marginBottom: SPACING.m,
   },
   streakContainer: {
     flexDirection: 'row',

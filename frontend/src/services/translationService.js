@@ -10,6 +10,7 @@ const LANGUAGE_CODES = {
   malay: 'ms',
   indonesian: 'id',
   mandarin: 'zh-CN',
+  chinese: 'zh-CN',
   spanish: 'es',
   french: 'fr',
   arabic: 'ar',

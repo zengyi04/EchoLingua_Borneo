@@ -6,6 +6,8 @@ import * as FileSystem from 'expo-file-system';
 
 const OFFLINE_DATA_KEY = 'offlineContent';
 const DOWNLOAD_PROGRESS_KEY = 'downloadProgress';
+const OFFLINE_PROGRESS_QUEUE_KEY = '@echolingua_offline_progress_queue';
+const LAST_SYNC_AT_KEY = '@echolingua_offline_last_sync_at';
 
 /**
  * Download and cache content for offline use
@@ -321,6 +323,111 @@ export const syncOfflineContent = async () => {
   }
 };
 
+/**
+ * Queue progress event while learner is offline.
+ * @param {Object} event - Progress payload
+ * @returns {Promise<Object>} Queue result
+ */
+export const queueOfflineProgress = async (event) => {
+  try {
+    const existing = await getQueuedOfflineProgress();
+    const normalizedEvent = {
+      id: event.id || `offline-progress-${Date.now()}`,
+      type: event.type || 'lesson',
+      title: event.title || 'Offline learning event',
+      durationMinutes: Number(event.durationMinutes || 0),
+      score: Number(event.score || 0),
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [normalizedEvent, ...existing];
+    await AsyncStorage.setItem(OFFLINE_PROGRESS_QUEUE_KEY, JSON.stringify(updated));
+
+    return {
+      success: true,
+      queued: updated.length,
+      event: normalizedEvent,
+    };
+  } catch (error) {
+    console.error('Queue offline progress error:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+/**
+ * Read queued offline progress events.
+ * @returns {Promise<Array>} Progress queue
+ */
+export const getQueuedOfflineProgress = async () => {
+  try {
+    const stored = await AsyncStorage.getItem(OFFLINE_PROGRESS_QUEUE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Get queued offline progress error:', error);
+    return [];
+  }
+};
+
+/**
+ * Sync queued progress to local progress storage.
+ * This simulates deferred sync for low-connectivity environments.
+ * @returns {Promise<Object>} Sync result
+ */
+export const syncOfflineProgress = async () => {
+  try {
+    const queue = await getQueuedOfflineProgress();
+    if (queue.length === 0) {
+      return {
+        success: true,
+        syncedCount: 0,
+        message: 'No offline progress to sync',
+      };
+    }
+
+    const totalLearningTimeRaw = await AsyncStorage.getItem('@total_learning_time');
+    const totalLearningTime = Number.parseInt(totalLearningTimeRaw || '0', 10) || 0;
+    const additionalMinutes = queue.reduce((sum, item) => sum + (Number(item.durationMinutes) || 0), 0);
+    await AsyncStorage.setItem('@total_learning_time', String(totalLearningTime + additionalMinutes));
+
+    const existingProgressEventsRaw = await AsyncStorage.getItem('@echolingua_synced_offline_progress');
+    const existingProgressEvents = existingProgressEventsRaw ? JSON.parse(existingProgressEventsRaw) : [];
+    const mergedEvents = [...queue, ...existingProgressEvents].slice(0, 500);
+    await AsyncStorage.setItem('@echolingua_synced_offline_progress', JSON.stringify(mergedEvents));
+
+    await AsyncStorage.removeItem(OFFLINE_PROGRESS_QUEUE_KEY);
+    await AsyncStorage.setItem(LAST_SYNC_AT_KEY, new Date().toISOString());
+
+    return {
+      success: true,
+      syncedCount: queue.length,
+      totalMinutesSynced: additionalMinutes,
+      message: `Synced ${queue.length} offline progress event(s)`,
+    };
+  } catch (error) {
+    console.error('Sync offline progress error:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+/**
+ * Get the timestamp of the last sync operation.
+ * @returns {Promise<string|null>} ISO date string or null
+ */
+export const getOfflineLastSyncAt = async () => {
+  try {
+    return await AsyncStorage.getItem(LAST_SYNC_AT_KEY);
+  } catch (error) {
+    console.error('Get offline last sync error:', error);
+    return null;
+  }
+};
+
 export default {
   downloadContent,
   getOfflineContent,
@@ -332,4 +439,8 @@ export default {
   formatBytes,
   batchDownload,
   syncOfflineContent,
+  queueOfflineProgress,
+  getQueuedOfflineProgress,
+  syncOfflineProgress,
+  getOfflineLastSyncAt,
 };

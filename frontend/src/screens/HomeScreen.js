@@ -12,6 +12,9 @@ const COMMUNITY_STORIES_KEY = '@echolingua_stories';
 const SEEN_STORIES_KEY = '@echolingua_seen_stories';
 const NOTIFICATIONS_KEY = '@echolingua_notifications';
 const USER_STORAGE_KEY = '@echolingua_current_user';
+const DAILY_REMINDER_KEY = '@echolingua_daily_learning_reminder';
+const QUIZ_RESULTS_KEY = '@echolingua_quiz_results';
+const SCENARIO_RESULTS_KEY = '@echolingua_scenario_results';
 
 const { width } = Dimensions.get('window');
 
@@ -50,6 +53,24 @@ export default function HomeScreen({ navigation }) {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [showShareVocabularyModal, setShowShareVocabularyModal] = useState(false);
+  const [todaysVocabulary, setTodaysVocabulary] = useState([]);
+
+  const getStatusIndicator = (status) => {
+    const normalized = String(status || '').toLowerCase();
+
+    if (normalized.includes('safe') || normalized.includes('develop')) {
+      return { emoji: '🟢', label: 'Safe' };
+    }
+    if (normalized.includes('endanger')) {
+      return { emoji: '🔴', label: 'Endangered' };
+    }
+    if (normalized.includes('threat') || normalized.includes('vulner')) {
+      return { emoji: '🟡', label: 'Vulnerable' };
+    }
+
+    return { emoji: '🟡', label: 'Vulnerable' };
+  };
 
   const loadCurrentUser = async () => {
     try {
@@ -77,6 +98,168 @@ export default function HomeScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Failed to load notifications:', error);
+    }
+  };
+
+  const ensureDailyLearningReminder = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (!userData) {
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      const recipientId = user.id;
+      if (!recipientId) {
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const reminderDateKey = `${DAILY_REMINDER_KEY}_${recipientId}`;
+      const sentToday = await AsyncStorage.getItem(reminderDateKey);
+      if (sentToday === today) {
+        return;
+      }
+
+      const notifRaw = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      const allNotifications = notifRaw ? JSON.parse(notifRaw) : [];
+      const alreadyQueued = allNotifications.some(
+        (n) => n.type === 'daily_reminder' && n.recipientId === recipientId && n.reminderDate === today
+      );
+
+      if (alreadyQueued) {
+        await AsyncStorage.setItem(reminderDateKey, today);
+        return;
+      }
+
+      const reminder = {
+        id: `daily-reminder-${recipientId}-${today}`,
+        type: 'daily_reminder',
+        title: 'Daily Learning Reminder',
+        message: 'Time to learn your indigenous language today!',
+        recipientId,
+        read: false,
+        reminderDate: today,
+        timestamp: new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify([reminder, ...allNotifications]));
+      await AsyncStorage.setItem(reminderDateKey, today);
+      loadUnreadNotificationsCount();
+    } catch (error) {
+      console.error('Failed to schedule daily reminder:', error);
+    }
+  };
+
+  const loadTodaysVocabulary = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const vocabulary = [];
+
+      // Load quiz results from today
+      const quizResultsRaw = await AsyncStorage.getItem(QUIZ_RESULTS_KEY);
+      if (quizResultsRaw) {
+        const quizResults = JSON.parse(quizResultsRaw);
+        const todaysQuizzes = quizResults.filter(result => {
+          const resultDate = new Date(result.createdAt).toISOString().split('T')[0];
+          return resultDate === today;
+        });
+
+        todaysQuizzes.forEach(quiz => {
+          vocabulary.push({
+            type: 'quiz',
+            language: quiz.language || selectedLang?.name || 'Indigenous Language',
+            difficulty: quiz.difficulty || 'medium',
+            score: quiz.percentage || 0,
+            timestamp: quiz.createdAt,
+          });
+        });
+      }
+
+      // Load scenario practice results from today
+      const scenarioResultsRaw = await AsyncStorage.getItem(SCENARIO_RESULTS_KEY);
+      if (scenarioResultsRaw) {
+        const scenarioResults = JSON.parse(scenarioResultsRaw);
+        const todaysScenarios = scenarioResults.filter(result => {
+          const resultDate = new Date(result.createdAt).toISOString().split('T')[0];
+          return resultDate === today;
+        });
+
+        todaysScenarios.forEach(scenario => {
+          vocabulary.push({
+            type: 'practice',
+            language: scenario.toLanguage || selectedLang?.name || 'Indigenous Language',
+            scenario: scenario.scenarioTitle || 'Conversation Practice',
+            score: scenario.overall || 0,
+            timestamp: scenario.createdAt,
+          });
+        });
+      }
+
+      setTodaysVocabulary(vocabulary);
+    } catch (error) {
+      console.error('Failed to load today\'s vocabulary:', error);
+      setTodaysVocabulary([]);
+    }
+  };
+
+  const handleShareWordToCommunity = async (vocabularyItem = null) => {
+    try {
+      const userDataRaw = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      const user = userDataRaw ? JSON.parse(userDataRaw) : null;
+      const authorName = user?.name || user?.username || 'Community Learner';
+
+      let description = '';
+      let language = selectedLang?.name || 'Indigenous Language';
+
+      if (vocabularyItem) {
+        language = vocabularyItem.language || language;
+        if (vocabularyItem.type === 'quiz') {
+          description = `I completed a ${vocabularyItem.difficulty} quiz in ${language} and scored ${vocabularyItem.score}%! 📚`;
+        } else if (vocabularyItem.type === 'practice') {
+          description = `I practiced "${vocabularyItem.scenario}" in ${language} and scored ${vocabularyItem.score}%! 🎯`;
+        }
+      } else {
+        description = `Learning ${language} today! Join me in preserving our indigenous languages! 💪`;
+      }
+
+      const newStory = {
+        id: Date.now().toString(),
+        title: 'Learning Progress Share',
+        description,
+        author: authorName,
+        authorAvatar: '👤',
+        language,
+        category: 'Learning Share',
+        likes: 0,
+        comments: 0,
+        bookmarks: 0,
+        audioUri: null,
+        timestamp: new Date().toISOString(),
+        uploadedAt: new Date().toISOString(),
+        isFollowing: false,
+        commentsList: [],
+      };
+
+      const storiesRaw = await AsyncStorage.getItem(COMMUNITY_STORIES_KEY);
+      const stories = storiesRaw ? JSON.parse(storiesRaw) : [];
+      const updatedStories = [newStory, ...stories];
+
+      await AsyncStorage.setItem(COMMUNITY_STORIES_KEY, JSON.stringify(updatedStories));
+
+      setShowShareVocabularyModal(false);
+
+      Alert.alert(
+        'Shared Successfully! 🎉',
+        'Your learning progress has been shared to the community.',
+        [
+          { text: 'View Community', onPress: () => navigation.navigate('CommunityStory') },
+          { text: 'Done' },
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to share:', error);
+      Alert.alert('Share Failed', 'Unable to share right now. Please try again.');
     }
   };
 
@@ -250,6 +433,8 @@ export default function HomeScreen({ navigation }) {
       loadUnreadStoriesCount();
       loadUnreadNotificationsCount();
       loadCurrentUser();
+      ensureDailyLearningReminder();
+      loadTodaysVocabulary();
     }, [])
   );
 
@@ -314,6 +499,9 @@ export default function HomeScreen({ navigation }) {
                 </View>
 
                 {LANGUAGES.map(lang => (
+                  (() => {
+                    const statusIndicator = getStatusIndicator(lang.status);
+                    return (
                    <TouchableOpacity 
                       key={lang.id} 
                       style={[styles.langOption, { borderBottomColor: theme.border }]}
@@ -329,7 +517,7 @@ export default function HomeScreen({ navigation }) {
                            selectedLang.id === lang.id && [styles.activeLangText, { color: theme.primary }]
                         ]}>{lang.name}</Text>
                         <Text style={[styles.langMeta, { color: theme.textSecondary }]}>
-                           {lang.speakers} speakers • {lang.status}
+                        {lang.speakers} speakers • Language Status: {statusIndicator.emoji} {statusIndicator.label}
                         </Text>
                      </View>
                       
@@ -342,6 +530,8 @@ export default function HomeScreen({ navigation }) {
                          <View style={styles.warningDot} />
                       )}
                    </TouchableOpacity>
+                      );
+                    })()
                 ))}
              </View>
           </TouchableOpacity>
@@ -428,6 +618,113 @@ export default function HomeScreen({ navigation }) {
                   contentContainerStyle={styles.notificationListContainer}
                   showsVerticalScrollIndicator={false}
                 />
+              )}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Share Vocabulary Modal */}
+        <Modal
+          visible={showShareVocabularyModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowShareVocabularyModal(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowShareVocabularyModal(false)}
+          >
+            <TouchableOpacity 
+              style={[styles.shareModalContent, { backgroundColor: theme.cardBackground }]} 
+              activeOpacity={1}
+            >
+              {/* Header */}
+              <View style={[styles.shareModalHeader, { borderBottomColor: theme.border }]}>
+                <Ionicons name="share-social" size={24} color={theme.primary} />
+                <Text style={[styles.shareModalTitle, { color: theme.text }]}>Share Your Progress</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowShareVocabularyModal(false)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Today's Learning */}
+              {todaysVocabulary.length === 0 ? (
+                <View style={styles.emptyShareContainer}>
+                  <Ionicons name="book-outline" size={64} color={theme.textSecondary} />
+                  <Text style={[styles.emptyShareTitle, { color: theme.text }]}>No Practice Today</Text>
+                  <Text style={[styles.emptyShareMessage, { color: theme.textSecondary }]}>
+                    Complete a quiz or practice session to share your progress!
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.startLearningButton, { backgroundColor: theme.primary }]}
+                    onPress={() => {
+                      setShowShareVocabularyModal(false);
+                      navigation.navigate('Learn');
+                    }}
+                  >
+                    <Text style={styles.startLearningButtonText}>Start Learning</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <ScrollView style={styles.shareListContainer} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.shareInstructions, { color: theme.textSecondary }]}>
+                    Select what you want to share with the community:
+                  </Text>
+
+                  {/* Share General Progress */}
+                  <TouchableOpacity
+                    style={[styles.shareItem, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    onPress={() => handleShareWordToCommunity(null)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.shareIconContainer, { backgroundColor: theme.primary + '20' }]}>
+                      <Ionicons name="trophy" size={24} color={theme.primary} />
+                    </View>
+                    <View style={styles.shareItemContent}>
+                      <Text style={[styles.shareItemTitle, { color: theme.text }]}>
+                        🎯 Share Today's Achievement
+                      </Text>
+                      <Text style={[styles.shareItemDescription, { color: theme.textSecondary }]}>
+                        {todaysVocabulary.length} practice session{todaysVocabulary.length > 1 ? 's' : ''} completed today
+                      </Text>
+                    </View>
+                    <Ionicons name="share-outline" size={20} color={theme.primary} />
+                  </TouchableOpacity>
+
+                  {/* Individual Items */}
+                  {todaysVocabulary.map((item, index) => (
+                    <TouchableOpacity
+                      key={`${item.type}-${index}`}
+                      style={[styles.shareItem, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                      onPress={() => handleShareWordToCommunity(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.shareIconContainer, { backgroundColor: theme.secondary + '20' }]}>
+                        <Ionicons 
+                          name={item.type === 'quiz' ? 'school' : 'chatbubbles'} 
+                          size={24} 
+                          color={theme.secondary} 
+                        />
+                      </View>
+                      <View style={styles.shareItemContent}>
+                        <Text style={[styles.shareItemTitle, { color: theme.text }]}>
+                          {item.type === 'quiz' 
+                            ? `${item.language} Quiz (${item.difficulty})`
+                            : `${item.scenario}`
+                          }
+                        </Text>
+                        <Text style={[styles.shareItemDescription, { color: theme.textSecondary }]}>
+                          Score: {item.score}% • {new Date(item.timestamp).toLocaleTimeString()}
+                        </Text>
+                      </View>
+                      <Ionicons name="share-outline" size={20} color={theme.secondary} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               )}
             </TouchableOpacity>
           </TouchableOpacity>
@@ -528,13 +825,35 @@ export default function HomeScreen({ navigation }) {
             title="Community" 
             icon={<FontAwesome5 name="users" size={20} />}
             color="#3498DB" 
-            onPress={() => navigation.navigate('CommunityStory')}
+            onPress={() => {
+              Alert.alert(
+                'Community Action',
+                'Choose what you want to do:',
+                [
+                  { text: 'Open Community', onPress: () => navigation.navigate('CommunityStory') },
+                  {
+                    text: 'Share My Progress',
+                    onPress: () => {
+                      loadTodaysVocabulary();
+                      setShowShareVocabularyModal(true);
+                    },
+                  },
+                  { text: 'Cancel', style: 'cancel' },
+                ]
+              );
+            }}
           />
           <QuickAction 
             title="Progress" 
             icon={<MaterialIcons name="trending-up" size={24} />}
             color="#27AE60" 
             onPress={() => navigation.navigate('ProgressTracker')}
+          />
+          <QuickAction 
+            title="Vitality AI" 
+            icon={<MaterialCommunityIcons name="chart-timeline-variant" size={22} />}
+            color="#16A34A" 
+            onPress={() => navigation.navigate('LanguageVitality')}
           />
         </View>
 
@@ -1006,5 +1325,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  // Share Modal Styles
+  shareModalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: SPACING.m,
+    overflow: 'hidden',
+    ...SHADOWS.large,
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
+    borderBottomWidth: 1,
+    gap: SPACING.s,
+  },
+  shareModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  shareListContainer: {
+    padding: SPACING.m,
+  },
+  shareInstructions: {
+    fontSize: 14,
+    marginBottom: SPACING.m,
+    paddingHorizontal: 4,
+  },
+  shareItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    borderRadius: 12,
+    marginBottom: SPACING.m,
+    borderWidth: 1,
+    ...SHADOWS.small,
+  },
+  shareIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
+  shareItemContent: {
+    flex: 1,
+  },
+  shareItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  shareItemDescription: {
+    fontSize: 13,
+  },
+  emptyShareContainer: {
+    padding: SPACING.xl * 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyShareTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: SPACING.m,
+    marginBottom: SPACING.s,
+  },
+  emptyShareMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: SPACING.l,
+  },
+  startLearningButton: {
+    paddingHorizontal: SPACING.l,
+    paddingVertical: SPACING.m,
+    borderRadius: 25,
+    ...SHADOWS.medium,
+  },
+  startLearningButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
